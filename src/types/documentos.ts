@@ -69,11 +69,14 @@ export const tipoParentescoOpcoes: TipoParentesco[] = [
 ]
 
 export interface DocumentoMetadataRequest {
-  categoria?: DocumentoCategoria
-  tipoIdentificacao?: DocumentoIdentificacaoTipo
-  tipoEndereco?: DocumentoEnderecoTipo
-  documentoDe?: DocumentoDe
-  dataUpload?: string | null
+  documentoExternoId: string
+  tipo: TipoDocumento
+  papel: PapelDocumento
+  tipoParentesco?: TipoParentesco | null
+  cpf?: string | null
+  cpfDependente?: string | null
+  cnpj?: string | null
+  extracaoProcessada: boolean
 }
 
 export interface DocumentoUploadRequest {
@@ -87,12 +90,53 @@ export interface DocumentoUploadRequest {
   arquivo: File
 }
 
-export interface DocumentoResponse extends DocumentoMetadataRequest {
+export interface DocumentoExternoUploadResponse {
+  id: string
+  extracaoProcessada: boolean
+  dadosExtraidos?: DocumentoDadosExtraidos | null
+  reprocessarUrl?: string | null
+}
+
+export interface DocumentoExternoResponse {
+  id: string
+  cpf?: string | null
+  cpfDependente?: string | null
+  cnpj?: string | null
+  papel: PapelDocumento | number
+  tipoParentesco: TipoParentesco | number
+  tipo: TipoDocumento | number
+  status: number
+  observacoes?: string | null
+  versaoAtual: number
+  excluido: boolean
+  criadoEm: string
+  atualizadoEm: string
+  statusExtracao: number
+  erroExtracao?: string | null
+  extraidoEm?: string | null
+}
+
+export interface DocumentoDadosExtraidos {
+  identificacao?: Record<string, unknown> | null
+  enderecos?: Array<Record<string, unknown>>
+  vinculo?: Record<string, unknown> | null
+}
+
+export interface DocumentoResponse {
   id: string
   leadId: string
+  documentoExternoId: string
+  tipo: TipoDocumento
+  papel: PapelDocumento
+  tipoParentesco?: TipoParentesco | null
+  cpf?: string | null
+  cpfDependente?: string | null
+  cnpj?: string | null
+  extracaoProcessada: boolean
+  aprovado: boolean
+  dataUpload: string
+  dataAprovacao?: string | null
+  motivoReprovacao?: string | null
   nomeArquivo?: string | null
-  nomeArquivoArmazenado?: string | null
   contentType?: string | null
-  tamanhoBytes: number
-  caminhoArquivo?: string | null
 }

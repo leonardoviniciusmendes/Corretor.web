@@ -6,6 +6,8 @@ import ListState from '@/components/ui/ListState.vue'
 import { useApiAction } from '@/composables/useApiAction'
 import { getErrorMessage } from '@/services/apiClient'
 import { documentosApprovalStore } from '@/services/documentosApprovalStore'
+import { documentosExternosService } from '@/services/documentosExternosService'
+import { documentosExternosStore } from '@/services/documentosExternosStore'
 import { documentosService } from '@/services/documentosService'
 import { leadsService } from '@/services/leadsService'
 import { simulacoesService } from '@/services/simulacoesService'
@@ -34,6 +36,8 @@ const previewUrl = ref<string | null>(null)
 const previewContentType = ref<string | null>(null)
 const previewLoading = ref(false)
 const previewError = ref<string | null>(null)
+const externalLoading = ref(false)
+const externalError = ref<string | null>(null)
 const action = useApiAction()
 const tiposIdentificacaoTitular: TipoDocumento[] = ['RG', 'CPF', 'CNH']
 const tiposEndereco: TipoDocumento[] = [
@@ -73,7 +77,7 @@ const isDependente = computed(() => form.papel === 'Dependente')
 const isEmpresa = computed(() => form.papel === 'Empresa')
 const cpfObrigatorio = computed(() => isEndereco.value || isDependente.value)
 const identificacaoTitularEnviada = computed(() =>
-  documentos.value.some((documento) => documento.categoria === 'Identificacao' && documento.documentoDe === 'Titular'),
+  documentos.value.some((documento) => documento.papel === 'Titular' && ['RG', 'CPF', 'CNH'].includes(documento.tipo)),
 )
 const canPreviewInline = computed(() => {
   const contentType = previewContentType.value ?? viewingDocumento.value?.contentType ?? ''
@@ -158,7 +162,18 @@ async function submit() {
   }
 
   const result = await action.run(async () => {
-    await documentosService.create(payload, simulacao.value!.leadId)
+    const externo = await documentosExternosService.upload(payload)
+    const documentoInterno = await documentosService.create({
+      documentoExternoId: externo.id,
+      tipo: payload.tipo,
+      papel: payload.papel,
+      tipoParentesco: payload.tipoParentesco,
+      cpf: payload.cpf,
+      cpfDependente: payload.cpfDependente,
+      cnpj: payload.cnpj,
+      extracaoProcessada: externo.extracaoProcessada,
+    }, simulacao.value!.leadId)
+    documentosExternosStore.save(documentoInterno.id, externo)
     return true
   }, 'Documento enviado.')
 
@@ -176,6 +191,7 @@ async function removeDocumento(documento: DocumentoResponse) {
 
   if (result) {
     documentosApprovalStore.remove(documento.id)
+    documentosExternosStore.remove(documento.id)
     if (viewingDocumento.value?.id === documento.id) viewingDocumento.value = null
     await load()
   }
@@ -195,7 +211,7 @@ async function openDocumento(documento: DocumentoResponse) {
   previewLoading.value = true
 
   try {
-    const response = await fetch(documentosService.fileUrl(documento.id))
+    const response = await fetch(documentosExternosService.downloadUrl(documento.documentoExternoId))
     if (!response.ok) throw new Error(`Erro ${response.status} ao carregar o arquivo.`)
 
     const blob = await response.blob()
@@ -209,13 +225,94 @@ async function openDocumento(documento: DocumentoResponse) {
 }
 
 async function approveDocumento(documento: DocumentoResponse) {
+  const vinculo = documentosExternosStore.get(documento.id)
+  if (vinculo) await documentosExternosService.atualizarStatus(vinculo.documentoExternoId, 3, 'Aprovado no Corretor.web')
+  await documentosService.approve(documento.id)
   documentosApprovalStore.approve(documento.id)
   clearPreview()
   await load()
 }
 
+async function rejectDocumento(documento: DocumentoResponse) {
+  const vinculo = documentosExternosStore.get(documento.id)
+  const motivo = 'Rejeitado no Corretor.web'
+  if (vinculo) await documentosExternosService.atualizarStatus(vinculo.documentoExternoId, 4, motivo)
+  await documentosService.reject(documento.id, motivo)
+  documentosApprovalStore.remove(documento.id)
+  clearPreview()
+  await load()
+}
+
 function isDocumentoAprovado(documento: DocumentoResponse) {
-  return documentosApprovalStore.isApproved(documento.id)
+  return documento.aprovado || documentosApprovalStore.isApproved(documento.id)
+}
+
+function getDocumentoExterno(documento: DocumentoResponse) {
+  return documentosExternosStore.get(documento.id) ?? {
+    documentoExternoId: documento.documentoExternoId,
+    extracaoProcessada: documento.extracaoProcessada,
+  }
+}
+
+function getDocumentoExternoId(documento: DocumentoResponse) {
+  return getDocumentoExterno(documento)?.documentoExternoId ?? documento.documentoExternoId
+}
+
+async function consultarExtracao(documento: DocumentoResponse) {
+  const documentoExternoId = getDocumentoExternoId(documento)
+  if (!documentoExternoId) {
+    externalError.value = 'Documento sem retorno externo salvo.'
+    return
+  }
+
+  externalLoading.value = true
+  externalError.value = null
+
+  try {
+    const dados = await documentosExternosService.getDadosExtraidos(documentoExternoId)
+    const atualizado = documentosExternosStore.updateDados(documento.id, dados, Boolean(dados))
+    if (!atualizado) {
+      documentosExternosStore.save(documento.id, {
+        id: documentoExternoId,
+        extracaoProcessada: Boolean(dados),
+        dadosExtraidos: dados,
+      })
+    }
+    await load()
+  } catch (err) {
+    externalError.value = getErrorMessage(err)
+  } finally {
+    externalLoading.value = false
+  }
+}
+
+async function reprocessarDocumento(documento: DocumentoResponse) {
+  const documentoExternoId = getDocumentoExternoId(documento)
+  if (!documentoExternoId) {
+    externalError.value = 'Documento sem retorno externo salvo.'
+    return
+  }
+
+  externalLoading.value = true
+  externalError.value = null
+
+  try {
+    await documentosExternosService.reprocessar(documentoExternoId)
+    const dados = await documentosExternosService.getDadosExtraidos(documentoExternoId)
+    const atualizado = documentosExternosStore.updateDados(documento.id, dados, Boolean(dados))
+    if (!atualizado) {
+      documentosExternosStore.save(documento.id, {
+        id: documentoExternoId,
+        extracaoProcessada: Boolean(dados),
+        dadosExtraidos: dados,
+      })
+    }
+    await load()
+  } catch (err) {
+    externalError.value = getErrorMessage(err)
+  } finally {
+    externalLoading.value = false
+  }
 }
 
 watch(
@@ -340,16 +437,27 @@ onUnmounted(clearPreview)
         <tbody>
           <tr v-for="documento in documentos" :key="documento.id">
             <td>
-              <strong>{{ documento.nomeArquivo || '-' }}</strong>
-              <small style="display: block; margin-top: 4px;">{{ documento.documentoDe || '-' }}</small>
+              <strong>{{ documento.nomeArquivo || documento.tipo }}</strong>
+              <small style="display: block; margin-top: 4px;">{{ documento.papel || '-' }}</small>
             </td>
-            <td>{{ documento.categoria || '-' }}</td>
-            <td>{{ documento.tipoIdentificacao || documento.tipoEndereco || '-' }}</td>
-            <td><span class="status-badge">{{ isDocumentoAprovado(documento) ? 'Aprovado' : 'Pendente' }}</span></td>
-            <td>{{ fileSizeLabel(documento.tamanhoBytes) }}</td>
+            <td>{{ ['RG', 'CPF', 'CNH'].includes(documento.tipo) ? 'Identificacao' : 'Endereco' }}</td>
+            <td>{{ documento.tipo }}</td>
+            <td>
+              <span class="status-badge">{{ isDocumentoAprovado(documento) ? 'Aprovado' : 'Pendente' }}</span>
+              <small v-if="getDocumentoExterno(documento)" style="display: block; margin-top: 4px;">
+                Extração {{ getDocumentoExterno(documento)?.extracaoProcessada ? 'processada' : 'pendente' }}
+              </small>
+            </td>
+            <td>{{ fileSizeLabel(0) }}</td>
             <td class="actions">
               <button class="button secondary" type="button" @click="openDocumento(documento)">Visualizar</button>
-              <a class="button secondary" :href="documentosService.fileUrl(documento.id)" target="_blank" rel="noreferrer">Baixar</a>
+              <button class="button secondary" type="button" :disabled="externalLoading || !getDocumentoExterno(documento)" @click="consultarExtracao(documento)">
+                Consultar extração
+              </button>
+              <button class="button secondary" type="button" :disabled="externalLoading || !getDocumentoExterno(documento)" @click="reprocessarDocumento(documento)">
+                Reprocessar
+              </button>
+              <a class="button secondary" :href="documentosExternosService.downloadUrl(documento.documentoExternoId)" target="_blank" rel="noreferrer">Baixar</a>
               <button class="button secondary" type="button" :disabled="action.loading.value" @click="removeDocumento(documento)">Excluir</button>
             </td>
           </tr>
@@ -363,7 +471,7 @@ onUnmounted(clearPreview)
       <div class="panel-header">
         <div>
           <span class="section-label">Documento</span>
-          <h3>{{ viewingDocumento.nomeArquivo || 'Visualizacao' }}</h3>
+          <h3>{{ viewingDocumento.nomeArquivo || viewingDocumento.tipo || 'Visualizacao' }}</h3>
         </div>
         <button class="button secondary" type="button" @click="clearPreview">Fechar</button>
       </div>
@@ -373,6 +481,7 @@ onUnmounted(clearPreview)
         <p>Carregando arquivo...</p>
       </div>
       <p v-else-if="previewError" class="form-error">{{ previewError }}</p>
+      <p v-if="externalError" class="form-error">{{ externalError }}</p>
       <img
         v-else-if="previewUrl && isPreviewImage"
         :src="previewUrl"
@@ -390,9 +499,23 @@ onUnmounted(clearPreview)
         <p>Este tipo de arquivo nao pode ser exibido no navegador. Use Baixar para abrir localmente.</p>
       </div>
 
+      <div v-if="getDocumentoExterno(viewingDocumento)" class="panel" style="margin-top: 16px;">
+        <div class="panel-header">
+          <div>
+            <span class="section-label">Extração</span>
+            <h3>Dados extraídos</h3>
+          </div>
+          <small>{{ getDocumentoExterno(viewingDocumento)?.documentoExternoId }}</small>
+        </div>
+        <pre style="white-space: pre-wrap; overflow: auto; max-height: 220px; font-size: 12px;">{{ JSON.stringify(getDocumentoExterno(viewingDocumento)?.dadosExtraidos ?? { status: 'Sem dados extraidos salvos. Use Consultar extração ou Reprocessar.' }, null, 2) }}</pre>
+      </div>
+
       <div class="form-actions">
-        <a class="button secondary" :href="documentosService.fileUrl(viewingDocumento.id)" target="_blank" rel="noreferrer">Baixar</a>
-        <button class="button" type="button" :disabled="isDocumentoAprovado(viewingDocumento)" @click="approveDocumento(viewingDocumento)">
+        <a class="button secondary" :href="documentosExternosService.downloadUrl(viewingDocumento.documentoExternoId)" target="_blank" rel="noreferrer">Baixar</a>
+        <button class="button secondary" type="button" :disabled="externalLoading || isDocumentoAprovado(viewingDocumento)" @click="rejectDocumento(viewingDocumento)">
+          Reprovar
+        </button>
+        <button class="button" type="button" :disabled="externalLoading || isDocumentoAprovado(viewingDocumento) || !getDocumentoExterno(viewingDocumento)?.dadosExtraidos" @click="approveDocumento(viewingDocumento)">
           {{ isDocumentoAprovado(viewingDocumento) ? 'Aprovado' : 'Aprovar' }}
         </button>
       </div>
