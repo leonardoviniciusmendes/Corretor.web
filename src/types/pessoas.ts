@@ -11,6 +11,18 @@ export interface PessoaResponse extends PessoaRequest {
   clienteId: string
 }
 
+export interface PessoaFisicaRequest {
+  nome: string
+  cpf: string
+  email?: string | null
+  telefone?: string | null
+  faixaEtaria?: string | null
+}
+
+export interface PessoaFisicaResponse extends PessoaFisicaRequest {
+  id: string
+}
+
 export interface DependenteResponse {
   id: string
   pessoaId: string

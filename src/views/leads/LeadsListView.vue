@@ -49,7 +49,7 @@ onMounted(load)
       <h2>Leads/Clientes</h2>
       <p>Cadastro operacional de leads e clientes.</p>
     </div>
-    <RouterLink class="button" to="/leads/novo">Novo</RouterLink>
+    <RouterLink class="button" to="/leads/novo">Novo lead/cliente</RouterLink>
   </section>
 
   <ListControls v-model="pager.search.value" />
@@ -86,10 +86,16 @@ onMounted(load)
             <td>{{ lead.quantidadeVidas ?? 0 }}</td>
             <td>{{ lead.operadora || '-' }}</td>
             <td>{{ lead.email || '-' }}</td>
-            <td class="actions">
-              <RouterLink :to="`/leads/${lead.id}`">Detalhe</RouterLink>
-              <RouterLink :to="`/leads/${lead.id}/editar`">Editar</RouterLink>
-              <button class="button secondary" type="button" @click="pendingDelete = lead">Excluir</button>
+            <td class="actions lead-actions">
+              <RouterLink class="action-button primary-action" :to="`/leads/${lead.id}`" :aria-label="`Abrir ${lead.nome || 'lead'}`">
+                Abrir
+              </RouterLink>
+              <RouterLink class="action-button" :to="`/leads/${lead.id}/editar`" :aria-label="`Editar ${lead.nome || 'lead'}`">
+                Editar
+              </RouterLink>
+              <button class="action-button danger-action" type="button" :aria-label="`Remover ${lead.nome || 'lead'}`" @click="pendingDelete = lead">
+                Remover
+              </button>
             </td>
           </tr>
         </tbody>
