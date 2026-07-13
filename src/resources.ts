@@ -23,9 +23,9 @@ export const resources = {
     service: leadsService,
     config: {
       key: 'leads',
-      title: 'Leads',
+      title: 'Leads/Clientes',
       singular: 'Lead',
-      description: 'Cadastro operacional de leads do contrato.',
+      description: 'Cadastro operacional de leads e clientes.',
       basePath: '/leads',
       fields: [
         { key: 'nome', label: 'Nome', required: true },
@@ -240,7 +240,7 @@ export const resources = {
 
 export type ResourceKey = keyof typeof resources
 
-export const visibleResourceKeys = ['leads', 'simulacoes', 'contratos', 'scripts'] as const
+export const visibleResourceKeys = ['leads', 'scripts'] as const
 
 export const visibleResources = Object.fromEntries(
   visibleResourceKeys.map((key) => [key, resources[key]]),

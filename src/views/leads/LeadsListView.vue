@@ -46,8 +46,8 @@ onMounted(load)
   <section class="page-intro">
     <div>
       <span class="section-label">Lead</span>
-      <h2>Leads</h2>
-      <p>Cadastro operacional de leads do contrato.</p>
+      <h2>Leads/Clientes</h2>
+      <p>Cadastro operacional de leads e clientes.</p>
     </div>
     <RouterLink class="button" to="/leads/novo">Novo</RouterLink>
   </section>

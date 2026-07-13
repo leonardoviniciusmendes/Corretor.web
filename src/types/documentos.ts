@@ -21,6 +21,12 @@ export interface DocumentoUploadRequest {
   tipoIdentificacao?: DocumentoIdentificacaoTipo
   tipoEndereco?: DocumentoEnderecoTipo
   documentoDe?: DocumentoDe
+  cpf?: string | null
+  cpfDependente?: string | null
+  cnpj?: string | null
+  tipoDocumento?: string | null
+  tipoParentesco?: string | null
+  observacoes?: string | null
   arquivo: File
 }
 

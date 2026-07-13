@@ -46,14 +46,26 @@ onMounted(load)
 </script>
 
 <template>
-  <section class="page-intro"><div><span class="section-label">Simulacao</span><h2>{{ isEdit ? 'Editar' : 'Nova' }} simulacao</h2><p>Campos enviados para POST/PUT de simulacoes.</p></div><RouterLink class="button secondary" :to="{ path: '/simulacoes', query: leadId ? { leadId } : {} }">Voltar</RouterLink></section>
+  <section class="page-intro">
+    <div><span class="section-label">Simulacao</span>
+      <h2>{{ isEdit ? 'Editar' : 'Nova' }} simulacao</h2>
+      <p>Campos enviados para POST/PUT de simulacoes.</p>
+    </div>
+    <RouterLink class="button secondary" :to="{ path: '/simulacoes', query: leadId ? { leadId } : {} }">Voltar
+    </RouterLink>
+  </section>
   <section class="panel form-panel">
     <ListState :loading="loading" :error="error" @retry="load" />
     <form v-if="!loading && !error" @submit.prevent="submit">
       <p v-if="!leadId && !isEdit" class="form-error">Informe Lead ID pela lista antes de criar uma simulacao.</p>
       <p v-if="action.error.value" class="form-error">{{ action.error.value }}</p>
-      <div class="form-grid"><label class="field full">Link<input v-model="form.link" /></label><label class="field checkbox-field"><input v-model="form.aprovada" type="checkbox" /> Aprovada</label></div>
-      <div class="form-actions"><RouterLink class="button secondary" :to="{ path: '/simulacoes', query: leadId ? { leadId } : {} }">Cancelar</RouterLink><button class="button" type="submit" :disabled="action.loading.value || Boolean(!leadId && !isEdit)">Salvar</button></div>
+      <div class="form-grid"><label class="field full">Link<input v-model="form.link" /></label><label
+          class="field checkbox-field"><input v-model="form.aprovada" type="checkbox" /> Aprovada</label></div>
+      <div class="form-actions">
+        <RouterLink class="button secondary" :to="{ path: '/simulacoes', query: leadId ? { leadId } : {} }">Cancelar
+        </RouterLink><button class="button" type="submit"
+          :disabled="action.loading.value || Boolean(!leadId && !isEdit)">Salvar</button>
+      </div>
     </form>
   </section>
 </template>

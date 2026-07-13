@@ -8,10 +8,7 @@ const route = useRoute()
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: 'D' },
-  { to: '/leads', label: 'Leads', icon: 'L' },
-  { to: '/simulacoes', label: 'Simulacoes', icon: 'S' },
-  { to: '/documentacao', label: 'Envio de documentos', icon: 'D' },
-  { to: '/contratos', label: 'Contratos', icon: 'C' },
+  { to: '/leads', label: 'Leads/Clientes', icon: 'L' },
   { to: '/scripts', label: 'Scripts', icon: 'S' },
 ]
 </script>
