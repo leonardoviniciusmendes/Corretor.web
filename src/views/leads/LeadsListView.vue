@@ -69,7 +69,6 @@ onMounted(load)
       <table>
         <thead>
           <tr>
-            <th>ID</th>
             <th>Nome</th>
             <th>Telefone</th>
             <th>Vidas</th>
@@ -80,7 +79,6 @@ onMounted(load)
         </thead>
         <tbody>
           <tr v-for="lead in pager.pagedItems.value" :key="lead.id">
-            <td><span class="id-chip">{{ lead.id.slice(0, 8) }}</span></td>
             <td>{{ lead.nome || '-' }}</td>
             <td>{{ lead.telefone || '-' }}</td>
             <td>{{ lead.quantidadeVidas ?? 0 }}</td>

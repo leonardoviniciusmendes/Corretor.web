@@ -2,15 +2,19 @@
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import ListState from '@/components/ui/ListState.vue'
+import { clientesService } from '@/services/clientesService'
 import { getErrorMessage } from '@/services/apiClient'
 import { contratosService } from '@/services/contratosService'
 import { documentosApprovalStore } from '@/services/documentosApprovalStore'
 import { documentosService } from '@/services/documentosService'
 import { leadsService } from '@/services/leadsService'
+import { pessoasFisicasService } from '@/services/pessoasFisicasService'
 import { simulacoesService } from '@/services/simulacoesService'
+import type { ClienteResponse } from '@/types/clientes'
 import type { ContratoResponse } from '@/types/contratos'
 import type { DocumentoResponse } from '@/types/documentos'
 import type { LeadResponse } from '@/types/leads'
+import type { PessoaFisicaResponse } from '@/types/pessoas'
 import type { SimulacaoResponse } from '@/types/simulacoes'
 
 const props = defineProps<{ id: string }>()
@@ -19,6 +23,8 @@ const lead = ref<LeadResponse | null>(null)
 const simulacoes = ref<SimulacaoResponse[]>([])
 const documentos = ref<DocumentoResponse[]>([])
 const contratos = ref<ContratoResponse[]>([])
+const cliente = ref<ClienteResponse | null>(null)
+const pessoaFisica = ref<PessoaFisicaResponse | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
 
@@ -36,22 +42,27 @@ const etapaAtual = computed(() => {
   if (simulacoes.value.length > 0) return 'Simulacao pendente'
   return 'Lead cadastrado'
 })
+const clienteTelefoneDiferente = computed(() => Boolean(pessoaFisica.value?.telefone && pessoaFisica.value.telefone !== lead.value?.telefone))
+const clienteEmailDiferente = computed(() => Boolean(pessoaFisica.value?.email && pessoaFisica.value.email !== lead.value?.email))
 
 async function load() {
   loading.value = true
   error.value = null
   try {
-    const [leadData, simulacoesData, documentosData, contratosData] = await Promise.all([
+    const [leadData, simulacoesData, documentosData, contratosData, clientesData] = await Promise.all([
       leadsService.get!(props.id),
       simulacoesService.list(props.id),
       documentosService.list(props.id),
       contratosService.list(props.id),
+      clientesService.list(),
     ])
 
     lead.value = leadData
     simulacoes.value = simulacoesData
     documentos.value = documentosData
     contratos.value = contratosData
+    cliente.value = clientesData.find((item) => item.leadId === props.id) ?? null
+    pessoaFisica.value = cliente.value?.pessoaFisicaId ? await pessoasFisicasService.get!(cliente.value.pessoaFisicaId) : null
   } catch (err) {
     error.value = getErrorMessage(err)
   } finally {
@@ -86,6 +97,11 @@ onMounted(load)
       <div><small>Quantidade de vidas</small><strong>{{ lead.quantidadeVidas ?? 0 }}</strong></div>
       <div><small>Operadora</small><strong>{{ lead.operadora || '-' }}</strong></div>
       <div><small>Email</small><strong>{{ lead.email || '-' }}</strong></div>
+      <div v-if="cliente"><small>Cliente</small><strong>Cadastrado</strong></div>
+      <div v-if="cliente"><small>CPF do cliente</small><strong>{{ pessoaFisica?.cpf || '-' }}</strong></div>
+      <div v-if="cliente && pessoaFisica?.faixaEtaria"><small>Faixa etaria</small><strong>{{ pessoaFisica.faixaEtaria }}</strong></div>
+      <div v-if="cliente && clienteTelefoneDiferente"><small>Telefone do cliente</small><strong>{{ pessoaFisica?.telefone }}</strong></div>
+      <div v-if="cliente && clienteEmailDiferente"><small>Email do cliente</small><strong>{{ pessoaFisica?.email }}</strong></div>
     </div>
   </section>
 </template>
