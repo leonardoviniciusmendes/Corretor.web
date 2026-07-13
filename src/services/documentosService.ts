@@ -1,9 +1,6 @@
 import { httpClient } from '@/services/apiClient'
 import type { DocumentoMetadataRequest, DocumentoResponse, DocumentoUploadRequest } from '@/types/documentos'
 
-const cpfFakeTitular = '52998224725'
-const cpfFakeDependente = '15350946056'
-
 export const documentosService = {
   list(leadId?: string) {
     if (!leadId) return Promise.resolve([])
@@ -13,19 +10,19 @@ export const documentosService = {
     if (!leadId) return Promise.reject(new Error('Informe o ID do lead.'))
 
     const form = new FormData()
-    if (payload.categoria) form.append('Categoria', payload.categoria)
-    if (payload.tipoIdentificacao) form.append('TipoIdentificacao', payload.tipoIdentificacao)
-    if (payload.tipoEndereco) form.append('TipoEndereco', payload.tipoEndereco)
-    if (payload.documentoDe) form.append('DocumentoDe', payload.documentoDe)
-    form.append('Cpf', payload.cpf ?? cpfFakeTitular)
-    if (payload.documentoDe === 'Dependente') {
-      form.append('CpfDependente', payload.cpfDependente ?? cpfFakeDependente)
-    }
-    if (payload.cnpj) form.append('Cnpj', payload.cnpj)
-    if (payload.tipoDocumento) form.append('TipoDocumento', payload.tipoDocumento)
-    if (payload.tipoParentesco) form.append('TipoParentesco', payload.tipoParentesco)
-    if (payload.observacoes) form.append('Observacoes', payload.observacoes)
-    form.append('Arquivo', payload.arquivo)
+    form.append('arquivo', payload.arquivo)
+    form.append('tipo', payload.tipo)
+    form.append('papel', payload.papel)
+    form.append('tipoParentesco', payload.tipoParentesco)
+    form.append('categoria', payload.tipo === 'ComprovanteResidencia' ? 'Endereco' : 'Identificacao')
+    form.append('documentoDe', payload.papel)
+    if (payload.tipo === 'CNH') form.append('tipoIdentificacao', 'Cnh')
+    if (payload.tipo !== 'ComprovanteResidencia' && payload.tipo !== 'CNH') form.append('tipoIdentificacao', 'Certidao')
+    if (payload.tipo === 'ComprovanteResidencia') form.append('tipoEndereco', 'ContaDeLuz')
+    if (payload.cpf) form.append('cpf', payload.cpf)
+    if (payload.cpfDependente) form.append('cpfDependente', payload.cpfDependente)
+    if (payload.cnpj) form.append('cnpj', payload.cnpj)
+    if (payload.observacoes) form.append('observacoes', payload.observacoes)
 
     return httpClient.postForm<DocumentoResponse>(`/api/leads/${leadId}/documentos`, form)
   },

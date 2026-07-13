@@ -10,16 +10,14 @@ import { documentosService } from '@/services/documentosService'
 import { leadsService } from '@/services/leadsService'
 import { simulacoesService } from '@/services/simulacoesService'
 import {
-  documentoCategorias,
-  documentoDeOpcoes,
-  documentoEnderecoTipos,
-  documentoIdentificacaoTipos,
-  type DocumentoCategoria,
-  type DocumentoDe,
-  type DocumentoEnderecoTipo,
-  type DocumentoIdentificacaoTipo,
   type DocumentoResponse,
   type DocumentoUploadRequest,
+  papelDocumentoOpcoes,
+  tipoDocumentoOpcoes,
+  tipoParentescoOpcoes,
+  type PapelDocumento,
+  type TipoDocumento,
+  type TipoParentesco,
 } from '@/types/documentos'
 import type { LeadResponse } from '@/types/leads'
 import type { SimulacaoResponse } from '@/types/simulacoes'
@@ -37,24 +35,43 @@ const previewContentType = ref<string | null>(null)
 const previewLoading = ref(false)
 const previewError = ref<string | null>(null)
 const action = useApiAction()
+const tiposIdentificacaoTitular: TipoDocumento[] = ['RG', 'CPF', 'CNH']
+const tiposEndereco: TipoDocumento[] = [
+  'ComprovanteResidencia',
+  'ContaLuz',
+  'ContaAgua',
+  'ContaTelefone',
+  'ContaInternet',
+  'ContaGas',
+  'FaturaCartaoCredito',
+  'ExtratoBancario',
+  'ContratoLocacao',
+  'IPTU',
+]
 
 const form = reactive<{
-  categoria: DocumentoCategoria | ''
-  tipoIdentificacao: DocumentoIdentificacaoTipo | ''
-  tipoEndereco: DocumentoEnderecoTipo | ''
-  documentoDe: DocumentoDe | ''
+  tipo: TipoDocumento | ''
+  papel: PapelDocumento | ''
+  tipoParentesco: TipoParentesco | ''
+  cpf: string
+  cpfDependente: string
+  cnpj: string
   arquivo: File | null
 }>({
-  categoria: '',
-  tipoIdentificacao: '',
-  tipoEndereco: '',
-  documentoDe: '',
+  tipo: '',
+  papel: '',
+  tipoParentesco: '',
+  cpf: '',
+  cpfDependente: '',
+  cnpj: '',
   arquivo: null,
 })
 
 const canSend = computed(() => Boolean(simulacao.value?.aprovada && simulacao.value.leadId))
-const showTipoIdentificacao = computed(() => form.categoria === 'Identificacao')
-const showTipoEndereco = computed(() => form.categoria === 'Endereco')
+const isEndereco = computed(() => tiposEndereco.includes(form.tipo as TipoDocumento))
+const isDependente = computed(() => form.papel === 'Dependente')
+const isEmpresa = computed(() => form.papel === 'Empresa')
+const cpfObrigatorio = computed(() => isEndereco.value || isDependente.value)
 const identificacaoTitularEnviada = computed(() =>
   documentos.value.some((documento) => documento.categoria === 'Identificacao' && documento.documentoDe === 'Titular'),
 )
@@ -87,10 +104,12 @@ async function load() {
 }
 
 function resetForm() {
-  form.categoria = identificacaoTitularEnviada.value ? '' : 'Identificacao'
-  form.tipoIdentificacao = ''
-  form.tipoEndereco = ''
-  form.documentoDe = identificacaoTitularEnviada.value ? '' : 'Titular'
+  form.tipo = identificacaoTitularEnviada.value ? '' : 'RG'
+  form.papel = identificacaoTitularEnviada.value ? '' : 'Titular'
+  form.tipoParentesco = identificacaoTitularEnviada.value ? '' : 'Titular'
+  form.cpf = ''
+  form.cpfDependente = ''
+  form.cnpj = ''
   form.arquivo = null
 }
 
@@ -108,16 +127,33 @@ function fileSizeLabel(bytes: number) {
 
 async function submit() {
   if (!simulacao.value?.leadId || !form.arquivo) return
-  if (!identificacaoTitularEnviada.value && (form.categoria !== 'Identificacao' || form.documentoDe !== 'Titular')) {
+  if (
+    !identificacaoTitularEnviada.value &&
+    (form.papel !== 'Titular' || !tiposIdentificacaoTitular.includes(form.tipo as TipoDocumento))
+  ) {
     action.error.value = 'Envie primeiro a identificacao do titular.'
+    return
+  }
+  if (cpfObrigatorio.value && !form.cpf.trim()) {
+    action.error.value = 'Informe o CPF do titular.'
+    return
+  }
+  if (isDependente.value && !form.cpfDependente.trim()) {
+    action.error.value = 'Informe o CPF do dependente.'
+    return
+  }
+  if (isEmpresa.value && !form.cnpj.trim()) {
+    action.error.value = 'Informe o CNPJ da empresa.'
     return
   }
 
   const payload: DocumentoUploadRequest = {
-    categoria: form.categoria || undefined,
-    tipoIdentificacao: form.tipoIdentificacao || undefined,
-    tipoEndereco: form.tipoEndereco || undefined,
-    documentoDe: form.documentoDe || undefined,
+    tipo: form.tipo as TipoDocumento,
+    papel: form.papel as PapelDocumento,
+    tipoParentesco: (form.tipoParentesco || 'Titular') as TipoParentesco,
+    cpf: form.cpf.trim() || undefined,
+    cpfDependente: isDependente.value ? form.cpfDependente.trim() : undefined,
+    cnpj: isEmpresa.value ? form.cnpj.trim() : undefined,
     arquivo: form.arquivo,
   }
 
@@ -183,10 +219,11 @@ function isDocumentoAprovado(documento: DocumentoResponse) {
 }
 
 watch(
-  () => form.categoria,
-  (categoria) => {
-    if (categoria === 'Identificacao') form.tipoEndereco = ''
-    if (categoria === 'Endereco') form.tipoIdentificacao = ''
+  () => form.papel,
+  (papel) => {
+    if (papel === 'Titular') form.tipoParentesco = 'Titular'
+    if (papel !== 'Dependente') form.cpfDependente = ''
+    if (papel !== 'Empresa') form.cnpj = ''
   },
 )
 
@@ -194,9 +231,9 @@ watch(
   identificacaoTitularEnviada,
   (enviada) => {
     if (!enviada) {
-      form.categoria = 'Identificacao'
-      form.documentoDe = 'Titular'
-      form.tipoEndereco = ''
+      form.tipo = 'RG'
+      form.papel = 'Titular'
+      form.tipoParentesco = 'Titular'
     }
   },
   { immediate: true },
@@ -233,32 +270,37 @@ onUnmounted(clearPreview)
 
       <div class="form-grid">
         <label class="field">
-          Categoria
-          <select v-model="form.categoria" required :disabled="!identificacaoTitularEnviada">
+          Tipo
+          <select v-model="form.tipo" required>
             <option value="">Selecione</option>
-            <option v-for="categoria in documentoCategorias" :key="categoria" :value="categoria">{{ categoria }}</option>
+            <option v-for="tipo in tipoDocumentoOpcoes" :key="tipo" :value="tipo">{{ tipo }}</option>
           </select>
         </label>
         <label class="field">
-          Documento de
-          <select v-model="form.documentoDe" required :disabled="!identificacaoTitularEnviada">
+          Papel
+          <select v-model="form.papel" required :disabled="!identificacaoTitularEnviada">
             <option value="">Selecione</option>
-            <option v-for="opcao in documentoDeOpcoes" :key="opcao" :value="opcao">{{ opcao }}</option>
+            <option v-for="opcao in papelDocumentoOpcoes" :key="opcao" :value="opcao">{{ opcao }}</option>
           </select>
         </label>
-        <label v-if="showTipoIdentificacao" class="field">
-          Tipo identificacao
-          <select v-model="form.tipoIdentificacao">
-            <option value="">Nao se aplica</option>
-            <option v-for="tipo in documentoIdentificacaoTipos" :key="tipo" :value="tipo">{{ tipo }}</option>
+        <label class="field">
+          Parentesco
+          <select v-model="form.tipoParentesco" required :disabled="form.papel === 'Titular'">
+            <option value="">Selecione</option>
+            <option v-for="tipo in tipoParentescoOpcoes" :key="tipo" :value="tipo">{{ tipo }}</option>
           </select>
         </label>
-        <label v-if="showTipoEndereco" class="field">
-          Tipo endereco
-          <select v-model="form.tipoEndereco">
-            <option value="">Nao se aplica</option>
-            <option v-for="tipo in documentoEnderecoTipos" :key="tipo" :value="tipo">{{ tipo }}</option>
-          </select>
+        <label class="field">
+          CPF titular
+          <input v-model.trim="form.cpf" inputmode="numeric" :required="cpfObrigatorio" placeholder="CPF do titular" />
+        </label>
+        <label v-if="isDependente" class="field">
+          CPF dependente
+          <input v-model.trim="form.cpfDependente" inputmode="numeric" required placeholder="CPF do dependente" />
+        </label>
+        <label v-if="isEmpresa" class="field">
+          CNPJ
+          <input v-model.trim="form.cnpj" inputmode="numeric" required placeholder="CNPJ da empresa" />
         </label>
         <label class="field full">
           Arquivo
