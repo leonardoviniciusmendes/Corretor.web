@@ -55,6 +55,9 @@ const form = reactive<{
 const canSend = computed(() => Boolean(simulacao.value?.aprovada && simulacao.value.leadId))
 const showTipoIdentificacao = computed(() => form.categoria === 'Identificacao')
 const showTipoEndereco = computed(() => form.categoria === 'Endereco')
+const identificacaoTitularEnviada = computed(() =>
+  documentos.value.some((documento) => documento.categoria === 'Identificacao' && documento.documentoDe === 'Titular'),
+)
 const canPreviewInline = computed(() => {
   const contentType = previewContentType.value ?? viewingDocumento.value?.contentType ?? ''
   return contentType.startsWith('application/pdf') || contentType.startsWith('image/')
@@ -84,10 +87,10 @@ async function load() {
 }
 
 function resetForm() {
-  form.categoria = ''
+  form.categoria = identificacaoTitularEnviada.value ? '' : 'Identificacao'
   form.tipoIdentificacao = ''
   form.tipoEndereco = ''
-  form.documentoDe = ''
+  form.documentoDe = identificacaoTitularEnviada.value ? '' : 'Titular'
   form.arquivo = null
 }
 
@@ -105,6 +108,10 @@ function fileSizeLabel(bytes: number) {
 
 async function submit() {
   if (!simulacao.value?.leadId || !form.arquivo) return
+  if (!identificacaoTitularEnviada.value && (form.categoria !== 'Identificacao' || form.documentoDe !== 'Titular')) {
+    action.error.value = 'Envie primeiro a identificacao do titular.'
+    return
+  }
 
   const payload: DocumentoUploadRequest = {
     categoria: form.categoria || undefined,
@@ -183,6 +190,18 @@ watch(
   },
 )
 
+watch(
+  identificacaoTitularEnviada,
+  (enviada) => {
+    if (!enviada) {
+      form.categoria = 'Identificacao'
+      form.documentoDe = 'Titular'
+      form.tipoEndereco = ''
+    }
+  },
+  { immediate: true },
+)
+
 onMounted(load)
 onUnmounted(clearPreview)
 </script>
@@ -208,18 +227,21 @@ onUnmounted(clearPreview)
 
     <form v-if="!loading && !error && canSend" @submit.prevent="submit">
       <p v-if="action.error.value" class="form-error">{{ action.error.value }}</p>
+      <p v-if="!identificacaoTitularEnviada" class="form-error">
+        Envie primeiro a identificacao do titular para liberar os demais documentos.
+      </p>
 
       <div class="form-grid">
         <label class="field">
           Categoria
-          <select v-model="form.categoria" required>
+          <select v-model="form.categoria" required :disabled="!identificacaoTitularEnviada">
             <option value="">Selecione</option>
             <option v-for="categoria in documentoCategorias" :key="categoria" :value="categoria">{{ categoria }}</option>
           </select>
         </label>
         <label class="field">
           Documento de
-          <select v-model="form.documentoDe" required>
+          <select v-model="form.documentoDe" required :disabled="!identificacaoTitularEnviada">
             <option value="">Selecione</option>
             <option v-for="opcao in documentoDeOpcoes" :key="opcao" :value="opcao">{{ opcao }}</option>
           </select>

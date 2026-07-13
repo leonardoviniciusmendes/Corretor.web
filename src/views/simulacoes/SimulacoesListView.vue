@@ -134,7 +134,6 @@ onMounted(() => {
       <table>
         <thead>
           <tr>
-            <th>ID</th>
             <th>Link</th>
             <th>Aprovada</th>
             <th>Data envio</th>
@@ -143,14 +142,19 @@ onMounted(() => {
         </thead>
         <tbody>
           <tr v-for="item in pager.pagedItems.value" :key="item.id">
-            <td><span class="id-chip">{{ item.id.slice(0, 8) }}</span></td>
             <td>{{ item.link || '-' }}</td>
             <td>{{ item.aprovada ? 'Sim' : 'Nao' }}</td>
             <td>{{ item.dataEnvio || '-' }}</td>
-            <td class="actions">
-              <RouterLink :to="`/simulacoes/${item.id}`">Detalhe</RouterLink>
-              <RouterLink :to="`/simulacoes/${item.id}/editar?leadId=${leadId}`">Editar</RouterLink><button
-                class="button secondary" type="button" @click="pendingDelete = item">Excluir</button>
+            <td class="actions table-actions">
+              <RouterLink class="action-button primary-action" :to="`/simulacoes/${item.id}`" aria-label="Abrir simulacao">
+                Abrir
+              </RouterLink>
+              <RouterLink class="action-button" :to="`/simulacoes/${item.id}/editar?leadId=${leadId}`" aria-label="Editar simulacao">
+                Editar
+              </RouterLink>
+              <button class="action-button danger-action" type="button" aria-label="Remover simulacao" @click="pendingDelete = item">
+                Remover
+              </button>
             </td>
           </tr>
         </tbody>

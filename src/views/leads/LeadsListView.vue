@@ -86,7 +86,7 @@ onMounted(load)
             <td>{{ lead.quantidadeVidas ?? 0 }}</td>
             <td>{{ lead.operadora || '-' }}</td>
             <td>{{ lead.email || '-' }}</td>
-            <td class="actions lead-actions">
+            <td class="actions table-actions">
               <RouterLink class="action-button primary-action" :to="`/leads/${lead.id}`" :aria-label="`Abrir ${lead.nome || 'lead'}`">
                 Abrir
               </RouterLink>
