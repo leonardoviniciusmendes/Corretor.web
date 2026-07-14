@@ -17,6 +17,9 @@ export interface PessoaFisicaRequest {
   email?: string | null
   telefone?: string | null
   faixaEtaria?: string | null
+  dataNascimento?: string | null
+  nomeMae?: string | null
+  nomePai?: string | null
 }
 
 export interface PessoaFisicaResponse extends PessoaFisicaRequest {
@@ -25,5 +28,13 @@ export interface PessoaFisicaResponse extends PessoaFisicaRequest {
 
 export interface DependenteResponse {
   id: string
-  pessoaId: string
+  pessoaId?: string
+  pessoaFisicaId?: string
+  nome?: string | null
+  nomeCompleto?: string | null
+  cpf?: string | null
+  tipoParentesco?: string | null
+  dataNascimento?: string | null
+  nomeMae?: string | null
+  nomePai?: string | null
 }

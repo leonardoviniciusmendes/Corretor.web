@@ -13,6 +13,7 @@ import { documentosService } from '@/services/documentosService'
 import { enderecosService } from '@/services/enderecosService'
 import { fichaAssociativaService } from '@/services/fichaAssociativaService'
 import { leadsService } from '@/services/leadsService'
+import { pessoasFisicasService } from '@/services/pessoasFisicasService'
 import { simulacoesService } from '@/services/simulacoesService'
 import {
   type DocumentoDadosExtraidos,
@@ -85,6 +86,7 @@ const identificacaoTitularEnviada = computed(() =>
   documentos.value.some((documento) => documento.papel === 'Titular' && ['RG', 'CPF', 'CNH'].includes(documento.tipo)),
 )
 const cpfTitular = computed(() => documentos.value.find((documento) => documento.papel === 'Titular' && documento.cpf)?.cpf ?? '')
+const cpfTitularBloqueado = computed(() => form.papel === 'Titular' && Boolean(cpfTitular.value))
 const cpfsDependentes = computed(() =>
   [...new Set(documentos.value
     .filter((documento) => documento.papel === 'Dependente' && documento.cpfDependente)
@@ -201,6 +203,7 @@ async function submit() {
       extracaoProcessada: externo.extracaoProcessada,
     }, simulacao.value!.leadId)
     documentosExternosStore.save(documentoInterno.id, externo)
+    await garantirClienteTitular(externo.dadosExtraidos ?? null, documentoInterno)
     await registrarEnderecosExtraidos(externo.dadosExtraidos ?? null)
     return true
   }, 'Documento enviado.')
@@ -321,6 +324,85 @@ function extrairCpfIdentificacao(dados: DocumentoDadosExtraidos | null) {
   return ''
 }
 
+function extrairNomeIdentificacao(dados: DocumentoDadosExtraidos | null) {
+  const identificacao = dados?.identificacao
+  if (!identificacao) return ''
+
+  return asString(
+    identificacao.nomeCompleto ??
+    identificacao.NomeCompleto ??
+    identificacao.nome ??
+    identificacao.Nome,
+  )
+}
+
+function extrairDataNascimentoIdentificacao(dados: DocumentoDadosExtraidos | null) {
+  const identificacao = dados?.identificacao
+  if (!identificacao) return ''
+
+  return asString(
+    identificacao.dataNascimento ??
+    identificacao.DataNascimento ??
+    identificacao.nascimento ??
+    identificacao.Nascimento,
+  )
+}
+
+function extrairCampoIdentificacao(dados: DocumentoDadosExtraidos | null, ...campos: string[]) {
+  const identificacao = dados?.identificacao
+  if (!identificacao) return ''
+
+  for (const campo of campos) {
+    const value = asString(identificacao[campo])
+    if (value) return value
+  }
+
+  return ''
+}
+
+function faixaEtariaFromDataNascimento(value?: string | null) {
+  const raw = asString(value)
+  if (!raw) return ''
+  const data = new Date(raw)
+  if (Number.isNaN(data.getTime())) return ''
+
+  const hoje = new Date()
+  let idade = hoje.getFullYear() - data.getFullYear()
+  const aniversarioPassou = hoje.getMonth() > data.getMonth() || (hoje.getMonth() === data.getMonth() && hoje.getDate() >= data.getDate())
+  if (!aniversarioPassou) idade -= 1
+  return idade > 0 ? `${idade} anos` : ''
+}
+
+async function garantirClienteTitular(dados: DocumentoDadosExtraidos | null, documento: DocumentoResponse) {
+  if (!simulacao.value?.leadId || documento.papel !== 'Titular') return null
+
+  const clientes = await clientesService.list()
+  const clienteAtual = clientes.find((item) => item.leadId === simulacao.value?.leadId)
+  if (clienteAtual) return clienteAtual
+
+  const cpf = extrairCpfIdentificacao(dados) || documento.cpf || form.cpf
+  const nome = extrairNomeIdentificacao(dados) || lead.value?.nome || ''
+  if (!cpf || !nome) return null
+
+  const dataNascimento = extrairDataNascimentoIdentificacao(dados)
+  const pessoa = await pessoasFisicasService.create({
+    nome,
+    cpf,
+    email: lead.value?.email || undefined,
+    telefone: lead.value?.telefone || undefined,
+    faixaEtaria: faixaEtariaFromDataNascimento(dataNascimento) || undefined,
+    dataNascimento: dataNascimento || undefined,
+    nomeMae: extrairCampoIdentificacao(dados, 'nomeMae', 'NomeMae') || undefined,
+    nomePai: extrairCampoIdentificacao(dados, 'nomePai', 'NomePai') || undefined,
+  })
+
+  return clientesService.create({
+    leadId: simulacao.value.leadId,
+    pessoaFisicaId: pessoa.id,
+    pessoaJuridicaId: null,
+  })
+}
+
 async function atualizarDocumentoComDadosExtraidos(documento: DocumentoResponse, dados: DocumentoDadosExtraidos | null) {
   const cpfExtraido = extrairCpfIdentificacao(dados)
   if (!cpfExtraido) return
@@ -403,6 +485,7 @@ async function consultarExtracao(documento: DocumentoResponse) {
       })
     }
     await atualizarDocumentoComDadosExtraidos(documento, dados)
+    await garantirClienteTitular(dados, documento)
     await registrarEnderecosExtraidos(dados)
     await load()
   } catch (err) {
@@ -434,6 +517,7 @@ async function reprocessarDocumento(documento: DocumentoResponse) {
       })
     }
     await atualizarDocumentoComDadosExtraidos(documento, dados)
+    await garantirClienteTitular(dados, documento)
     await registrarEnderecosExtraidos(dados)
     await load()
   } catch (err) {
@@ -523,7 +607,7 @@ onUnmounted(clearPreview)
         </label>
         <label class="field">
           CPF titular
-          <input v-model.trim="form.cpf" inputmode="numeric" :disabled="form.papel === 'Titular'" :required="cpfObrigatorio" placeholder="CPF do titular" />
+          <input v-model.trim="form.cpf" inputmode="numeric" :disabled="cpfTitularBloqueado" :required="cpfObrigatorio" placeholder="CPF do titular" />
         </label>
         <label v-if="isDependente" class="field">
           CPF dependente
