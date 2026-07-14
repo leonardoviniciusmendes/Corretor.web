@@ -20,6 +20,9 @@ export type TipoDocumento =
   | 'ExtratoBancario'
   | 'ContratoLocacao'
   | 'IPTU'
+  | 'Elegibilidade'
+  | 'FichaAssociativa'
+  | 'DocumentoOficialComSelfie'
   | 'Outros'
 export type PapelDocumento = 'Titular' | 'Dependente' | 'Empresa'
 export type TipoParentesco =
@@ -54,6 +57,9 @@ export const tipoDocumentoOpcoes: TipoDocumento[] = [
   'ExtratoBancario',
   'ContratoLocacao',
   'IPTU',
+  'Elegibilidade',
+  'FichaAssociativa',
+  'DocumentoOficialComSelfie',
   'Outros',
 ]
 export const papelDocumentoOpcoes: PapelDocumento[] = ['Titular', 'Dependente', 'Empresa']

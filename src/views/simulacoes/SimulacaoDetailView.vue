@@ -60,11 +60,11 @@ onMounted(load)
   <section class="panel">
     <ListState :loading="loading" :error="error" @retry="load" />
     <p v-if="approving.error.value" class="form-error">{{ approving.error.value }}</p>
-    <div v-if="item" class="detail-grid">
+    <div v-if="item" class="detail-grid simulation-detail-grid">
    
       <div><small>Link</small><strong>{{ item.link || '-' }}</strong></div>
-      <div><small>Aprovada</small><strong>{{ item.aprovada ? 'Sim' : 'Nao' }}</strong></div>
       <div><small>Data envio</small><strong>{{ item.dataEnvio || '-' }}</strong></div>
+      <div><small>Status</small><strong>{{ item.aprovada ? 'Aprovada' : 'Pendente' }}</strong></div>
     </div>
   </section>
 </template>

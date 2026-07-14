@@ -15,6 +15,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      '/api/simulacoes': {
+        target: 'https://localhost:58507',
+        changeOrigin: true,
+        secure: false,
+      },
       '/api/documentos': {
         target: 'https://localhost:58507',
         changeOrigin: true,
@@ -26,6 +31,16 @@ export default defineConfig({
         secure: false,
       },
       '/api/pessoas-fisicas': {
+        target: 'https://localhost:58507',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/api/pessoas-juridicas': {
+        target: 'https://localhost:58507',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/api/contratos': {
         target: 'https://localhost:58507',
         changeOrigin: true,
         secure: false,

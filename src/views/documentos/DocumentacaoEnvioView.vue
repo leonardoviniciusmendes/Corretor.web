@@ -4,16 +4,18 @@ import { RouterLink } from 'vue-router'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import ListState from '@/components/ui/ListState.vue'
 import { useApiAction } from '@/composables/useApiAction'
-import { getErrorMessage } from '@/services/apiClient'
 import { clientesService } from '@/services/clientesService'
+import { getErrorMessage } from '@/services/apiClient'
 import { documentosApprovalStore } from '@/services/documentosApprovalStore'
 import { documentosExternosService } from '@/services/documentosExternosService'
 import { documentosExternosStore } from '@/services/documentosExternosStore'
 import { documentosService } from '@/services/documentosService'
+import { enderecosService } from '@/services/enderecosService'
+import { fichaAssociativaService } from '@/services/fichaAssociativaService'
 import { leadsService } from '@/services/leadsService'
-import { pessoasFisicasService } from '@/services/pessoasFisicasService'
 import { simulacoesService } from '@/services/simulacoesService'
 import {
+  type DocumentoDadosExtraidos,
   type DocumentoResponse,
   type DocumentoUploadRequest,
   papelDocumentoOpcoes,
@@ -23,7 +25,6 @@ import {
   type TipoDocumento,
   type TipoParentesco,
 } from '@/types/documentos'
-import type { ClienteResponse } from '@/types/clientes'
 import type { LeadResponse } from '@/types/leads'
 import type { SimulacaoResponse } from '@/types/simulacoes'
 
@@ -34,7 +35,6 @@ const error = ref<string | null>(null)
 const simulacao = ref<SimulacaoResponse | null>(null)
 const lead = ref<LeadResponse | null>(null)
 const documentos = ref<DocumentoResponse[]>([])
-const clientes = ref<ClienteResponse[]>([])
 const viewingDocumento = ref<DocumentoResponse | null>(null)
 const previewUrl = ref<string | null>(null)
 const previewContentType = ref<string | null>(null)
@@ -42,12 +42,9 @@ const previewLoading = ref(false)
 const previewError = ref<string | null>(null)
 const externalLoading = ref(false)
 const externalError = ref<string | null>(null)
-const activeTab = ref<'documentos' | 'cliente'>('documentos')
-const clienteDocumentoId = ref('')
-const confirmClienteCreation = ref(false)
 const action = useApiAction()
-const clienteAction = useApiAction()
-const tiposIdentificacaoTitular: TipoDocumento[] = ['RG', 'CPF', 'CNH']
+const fichaAction = useApiAction()
+const tiposIdentificacaoTitular: TipoDocumento[] = ['RG', 'CPF', 'CNH', 'DocumentoOficialComSelfie']
 const tiposEndereco: TipoDocumento[] = [
   'ComprovanteResidencia',
   'ContaLuz',
@@ -79,14 +76,6 @@ const form = reactive<{
   arquivo: null,
 })
 
-const clienteForm = reactive({
-  nome: '',
-  cpf: '',
-  email: '',
-  telefone: '',
-  faixaEtaria: '',
-})
-
 const canSend = computed(() => Boolean(simulacao.value?.aprovada && simulacao.value.leadId))
 const isEndereco = computed(() => tiposEndereco.includes(form.tipo as TipoDocumento))
 const isDependente = computed(() => form.papel === 'Dependente')
@@ -95,19 +84,18 @@ const cpfObrigatorio = computed(() => isEndereco.value || isDependente.value)
 const identificacaoTitularEnviada = computed(() =>
   documentos.value.some((documento) => documento.papel === 'Titular' && ['RG', 'CPF', 'CNH'].includes(documento.tipo)),
 )
+const cpfTitular = computed(() => documentos.value.find((documento) => documento.papel === 'Titular' && documento.cpf)?.cpf ?? '')
+const cpfsDependentes = computed(() =>
+  [...new Set(documentos.value
+    .filter((documento) => documento.papel === 'Dependente' && documento.cpfDependente)
+    .map((documento) => documento.cpfDependente!)
+  )],
+)
 const canPreviewInline = computed(() => {
   const contentType = previewContentType.value ?? viewingDocumento.value?.contentType ?? ''
   return contentType.startsWith('application/pdf') || contentType.startsWith('image/')
 })
 const isPreviewImage = computed(() => (previewContentType.value ?? viewingDocumento.value?.contentType ?? '').startsWith('image/'))
-const clienteExistente = computed(() => clientes.value.find((cliente) => cliente.leadId === simulacao.value?.leadId) ?? null)
-const documentosIdentificacao = computed(() => documentos.value.filter((documento) => ['RG', 'CPF', 'CNH'].includes(documento.tipo)))
-const selectedClienteDocumento = computed(() => documentos.value.find((documento) => documento.id === clienteDocumentoId.value) ?? documentosIdentificacao.value[0] ?? null)
-const dadosClienteExtraidos = computed(() => {
-  const documento = selectedClienteDocumento.value
-  if (!documento) return null
-  return getDocumentoExterno(documento)?.dadosExtraidos?.identificacao ?? null
-})
 
 async function load() {
   loading.value = true
@@ -117,18 +105,14 @@ async function load() {
     const simulacaoData = await simulacoesService.get!(props.id)
     simulacao.value = simulacaoData
 
-    const [leadData, documentosData, clientesData] = await Promise.all([
+    const [leadData, documentosData] = await Promise.all([
       leadsService.get!(simulacaoData.leadId),
       documentosService.list(simulacaoData.leadId),
-      clientesService.list(),
     ])
 
     lead.value = leadData
     documentos.value = documentosData
-    clientes.value = clientesData
-    if (!clienteDocumentoId.value && documentosData.length > 0) {
-      clienteDocumentoId.value = documentosData.find((documento) => ['RG', 'CPF', 'CNH'].includes(documento.tipo))?.id ?? ''
-    }
+    if (form.papel === 'Titular' && cpfTitular.value) form.cpf = cpfTitular.value
   } catch (err) {
     error.value = getErrorMessage(err)
   } finally {
@@ -136,83 +120,11 @@ async function load() {
   }
 }
 
-function asString(value: unknown) {
-  return typeof value === 'string' ? value.trim() : ''
-}
-
-function faixaEtariaFromDataNascimento(value: unknown) {
-  const raw = asString(value)
-  if (!raw) return ''
-  const data = new Date(raw)
-  if (Number.isNaN(data.getTime())) return ''
-
-  const hoje = new Date()
-  let idade = hoje.getFullYear() - data.getFullYear()
-  const aniversarioPassou = hoje.getMonth() > data.getMonth() || (hoje.getMonth() === data.getMonth() && hoje.getDate() >= data.getDate())
-  if (!aniversarioPassou) idade -= 1
-  return idade > 0 ? `${idade} anos` : ''
-}
-
-function carregarDadosCliente() {
-  const identificacao = dadosClienteExtraidos.value
-  const documento = selectedClienteDocumento.value
-  clienteForm.nome = asString(identificacao?.nomeCompleto) || lead.value?.nome || ''
-  clienteForm.cpf = asString(identificacao?.cpf) || documento?.cpf || ''
-  clienteForm.email = lead.value?.email || ''
-  clienteForm.telefone = lead.value?.telefone || ''
-  clienteForm.faixaEtaria = faixaEtariaFromDataNascimento(identificacao?.dataNascimento)
-}
-
-async function buscarExtracaoParaCliente() {
-  const documento = selectedClienteDocumento.value
-  if (!documento) return
-  await consultarExtracao(documento)
-  carregarDadosCliente()
-}
-
-async function criarCliente() {
-  if (!simulacao.value?.leadId) return
-  if (clienteExistente.value) {
-    clienteAction.error.value = 'Este lead ja possui cliente criado.'
-    return
-  }
-
-  const result = await clienteAction.run(async () => {
-    const pessoa = await pessoasFisicasService.create({
-      nome: clienteForm.nome.trim(),
-      cpf: clienteForm.cpf.trim(),
-      email: clienteForm.email.trim() || undefined,
-      telefone: clienteForm.telefone.trim() || undefined,
-      faixaEtaria: clienteForm.faixaEtaria.trim() || undefined,
-    })
-
-    await clientesService.create({
-      leadId: simulacao.value!.leadId,
-      pessoaFisicaId: pessoa.id,
-      pessoaJuridicaId: null,
-    })
-
-    return true
-  }, 'Cliente criado.')
-
-  if (result) await load()
-  confirmClienteCreation.value = false
-}
-
-function abrirConfirmacaoCliente() {
-  clienteAction.error.value = null
-  if (!clienteForm.nome.trim() || !clienteForm.cpf.trim()) {
-    clienteAction.error.value = 'Confira nome e CPF antes de criar o cliente.'
-    return
-  }
-  confirmClienteCreation.value = true
-}
-
 function resetForm() {
   form.tipo = identificacaoTitularEnviada.value ? '' : 'RG'
   form.papel = identificacaoTitularEnviada.value ? '' : 'Titular'
   form.tipoParentesco = identificacaoTitularEnviada.value ? '' : 'Titular'
-  form.cpf = ''
+  form.cpf = cpfTitular.value
   form.cpfDependente = ''
   form.cnpj = ''
   form.arquivo = null
@@ -221,6 +133,23 @@ function resetForm() {
 function onFileChange(event: Event) {
   const input = event.target as HTMLInputElement
   form.arquivo = input.files?.[0] ?? null
+}
+
+async function baixarFichaAssociativa() {
+  if (!simulacao.value?.leadId) return
+
+  await fichaAction.run(async () => {
+    const arquivo = await fichaAssociativaService.gerarArquivo(simulacao.value!.leadId)
+    const url = URL.createObjectURL(arquivo)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = arquivo.name
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+    return true
+  }, 'Ficha associativa baixada.')
 }
 
 function fileSizeLabel(bytes: number) {
@@ -243,10 +172,6 @@ async function submit() {
     action.error.value = 'Informe o CPF do titular.'
     return
   }
-  if (isDependente.value && !form.cpfDependente.trim()) {
-    action.error.value = 'Informe o CPF do dependente.'
-    return
-  }
   if (isEmpresa.value && !form.cnpj.trim()) {
     action.error.value = 'Informe o CNPJ da empresa.'
     return
@@ -264,24 +189,25 @@ async function submit() {
 
   const result = await action.run(async () => {
     const externo = await documentosExternosService.upload(payload)
+    const cpfDependenteExtraido = isDependente.value ? extrairCpfIdentificacao(externo.dadosExtraidos ?? null) : ''
     const documentoInterno = await documentosService.create({
       documentoExternoId: externo.id,
       tipo: payload.tipo,
       papel: payload.papel,
       tipoParentesco: payload.tipoParentesco,
       cpf: payload.cpf,
-      cpfDependente: payload.cpfDependente,
+      cpfDependente: payload.cpfDependente || cpfDependenteExtraido || undefined,
       cnpj: payload.cnpj,
       extracaoProcessada: externo.extracaoProcessada,
     }, simulacao.value!.leadId)
     documentosExternosStore.save(documentoInterno.id, externo)
+    await registrarEnderecosExtraidos(externo.dadosExtraidos ?? null)
     return true
   }, 'Documento enviado.')
 
   if (result) {
     resetForm()
     await load()
-    activeTab.value = 'cliente'
   }
 }
 
@@ -360,6 +286,102 @@ function getDocumentoExternoId(documento: DocumentoResponse) {
   return getDocumentoExterno(documento)?.documentoExternoId ?? documento.documentoExternoId
 }
 
+function asString(value: unknown) {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function normalizar(valor?: string | null) {
+  return (valor ?? '').trim().toLowerCase()
+}
+
+function onlyDigits(valor?: string | null) {
+  return (valor ?? '').replace(/\D/g, '')
+}
+
+function extrairCpfIdentificacao(dados: DocumentoDadosExtraidos | null) {
+  const identificacao = dados?.identificacao
+  if (!identificacao) return ''
+
+  const campos = [
+    identificacao.cpf,
+    identificacao.Cpf,
+    identificacao.numeroCpf,
+    identificacao.NumeroCpf,
+    identificacao.documento,
+    identificacao.Documento,
+    identificacao.numeroDocumento,
+    identificacao.NumeroDocumento,
+  ]
+
+  for (const campo of campos) {
+    const digits = onlyDigits(asString(campo))
+    if (digits.length === 11) return digits
+  }
+
+  return ''
+}
+
+async function atualizarDocumentoComDadosExtraidos(documento: DocumentoResponse, dados: DocumentoDadosExtraidos | null) {
+  const cpfExtraido = extrairCpfIdentificacao(dados)
+  if (!cpfExtraido) return
+
+  const cpf = documento.cpf || (documento.papel === 'Titular' ? cpfExtraido : undefined)
+  const cpfDependente = documento.cpfDependente || (documento.papel === 'Dependente' ? cpfExtraido : undefined)
+  if (cpf === documento.cpf && cpfDependente === documento.cpfDependente) return
+
+  await documentosService.update(documento.id, {
+    documentoExternoId: documento.documentoExternoId,
+    tipo: documento.tipo,
+    papel: documento.papel,
+    tipoParentesco: documento.tipoParentesco,
+    cpf,
+    cpfDependente,
+    cnpj: documento.cnpj,
+    extracaoProcessada: documento.extracaoProcessada,
+  })
+}
+
+function mapearEnderecoExtraido(endereco: Record<string, unknown>) {
+  const logradouroBase = asString(endereco.logradouro ?? endereco.Logradouro)
+  const numero = asString(endereco.numero ?? endereco.Numero)
+  const complemento = asString(endereco.complemento ?? endereco.Complemento)
+  const logradouro = [logradouroBase, numero, complemento].filter(Boolean).join(', ')
+
+  return {
+    logradouro,
+    estado: asString(endereco.uf ?? endereco.Uf ?? endereco.estado ?? endereco.Estado),
+    cidade: asString(endereco.cidade ?? endereco.Cidade),
+    cep: asString(endereco.cep ?? endereco.Cep),
+  }
+}
+
+async function registrarEnderecosExtraidos(dados: DocumentoDadosExtraidos | null) {
+  const enderecosExtraidos = dados?.enderecos ?? []
+  if (!simulacao.value?.leadId || enderecosExtraidos.length === 0) return
+
+  const clientes = await clientesService.list()
+  const cliente = clientes.find((item) => item.leadId === simulacao.value?.leadId)
+  if (!cliente) {
+    externalError.value = 'Endereço extraído, mas este lead ainda não possui cliente cadastrado.'
+    return
+  }
+
+  const enderecosAtuais = await enderecosService.list(cliente.id)
+  for (const enderecoExtraido of enderecosExtraidos) {
+    const endereco = mapearEnderecoExtraido(enderecoExtraido)
+    if (!endereco.logradouro || !endereco.estado || !endereco.cidade || !endereco.cep) continue
+
+    const jaExiste = enderecosAtuais.some((atual) =>
+      normalizar(atual.cep) === normalizar(endereco.cep) &&
+      normalizar(atual.logradouro) === normalizar(endereco.logradouro),
+    )
+    if (!jaExiste) {
+      const criado = await enderecosService.create(endereco, cliente.id)
+      enderecosAtuais.push(criado)
+    }
+  }
+}
+
 async function consultarExtracao(documento: DocumentoResponse) {
   const documentoExternoId = getDocumentoExternoId(documento)
   if (!documentoExternoId) {
@@ -380,7 +402,8 @@ async function consultarExtracao(documento: DocumentoResponse) {
         dadosExtraidos: dados,
       })
     }
-    if (selectedClienteDocumento.value?.id === documento.id) carregarDadosCliente()
+    await atualizarDocumentoComDadosExtraidos(documento, dados)
+    await registrarEnderecosExtraidos(dados)
     await load()
   } catch (err) {
     externalError.value = getErrorMessage(err)
@@ -410,7 +433,8 @@ async function reprocessarDocumento(documento: DocumentoResponse) {
         dadosExtraidos: dados,
       })
     }
-    if (selectedClienteDocumento.value?.id === documento.id) carregarDadosCliente()
+    await atualizarDocumentoComDadosExtraidos(documento, dados)
+    await registrarEnderecosExtraidos(dados)
     await load()
   } catch (err) {
     externalError.value = getErrorMessage(err)
@@ -423,6 +447,11 @@ watch(
   () => form.papel,
   (papel) => {
     if (papel === 'Titular') form.tipoParentesco = 'Titular'
+    if (papel === 'Titular' && cpfTitular.value) form.cpf = cpfTitular.value
+    if (papel === 'Dependente') {
+      if (cpfTitular.value) form.cpf = cpfTitular.value
+      if (!form.cpfDependente && cpfsDependentes.value.length === 1) form.cpfDependente = cpfsDependentes.value[0]
+    }
     if (papel !== 'Dependente') form.cpfDependente = ''
     if (papel !== 'Empresa') form.cnpj = ''
   },
@@ -457,19 +486,15 @@ onUnmounted(clearPreview)
   <section class="panel">
     <ListState :loading="loading" :error="error" @retry="load" />
 
-    <div v-if="!loading && !error && canSend" class="tabs">
-      <button type="button" :class="{ active: activeTab === 'documentos' }" @click="activeTab = 'documentos'">Documentos</button>
-      <button type="button" :class="{ active: activeTab === 'cliente' }" @click="activeTab = 'cliente'">Cliente</button>
-    </div>
-
     <EmptyState
       v-if="!loading && !error && !canSend"
       title="Simulacao nao aprovada"
       message="A documentacao so pode ser enviada depois que a simulacao estiver aprovada."
     />
 
-    <form v-if="!loading && !error && canSend && activeTab === 'documentos'" @submit.prevent="submit">
+    <form v-if="!loading && !error && canSend" @submit.prevent="submit">
       <p v-if="action.error.value" class="form-error">{{ action.error.value }}</p>
+      <p v-if="fichaAction.error.value" class="form-error">{{ fichaAction.error.value }}</p>
       <p v-if="!identificacaoTitularEnviada" class="form-error">
         Envie primeiro a identificacao do titular para liberar os demais documentos.
       </p>
@@ -498,11 +523,14 @@ onUnmounted(clearPreview)
         </label>
         <label class="field">
           CPF titular
-          <input v-model.trim="form.cpf" inputmode="numeric" :required="cpfObrigatorio" placeholder="CPF do titular" />
+          <input v-model.trim="form.cpf" inputmode="numeric" :disabled="form.papel === 'Titular'" :required="cpfObrigatorio" placeholder="CPF do titular" />
         </label>
         <label v-if="isDependente" class="field">
           CPF dependente
-          <input v-model.trim="form.cpfDependente" inputmode="numeric" required placeholder="CPF do dependente" />
+          <input v-model.trim="form.cpfDependente" inputmode="numeric" list="cpfs-dependentes" placeholder="Preenche pela extracao se ficar em branco" />
+          <datalist id="cpfs-dependentes">
+            <option v-for="cpf in cpfsDependentes" :key="cpf" :value="cpf" />
+          </datalist>
         </label>
         <label v-if="isEmpresa" class="field">
           CNPJ
@@ -510,67 +538,20 @@ onUnmounted(clearPreview)
         </label>
         <label class="field full">
           Arquivo
-          <input type="file" required @change="onFileChange" />
+          <input type="file" @change="onFileChange" />
+          <small v-if="form.arquivo">{{ form.arquivo.name }}</small>
         </label>
       </div>
 
       <div class="form-actions">
+        <button class="button secondary" type="button" :disabled="fichaAction.loading.value" @click="baixarFichaAssociativa">
+          {{ fichaAction.loading.value ? 'Gerando ficha...' : 'Baixar ficha associativa' }}
+        </button>
         <button class="button secondary" type="button" @click="resetForm">Limpar</button>
         <button class="button" type="submit" :disabled="action.loading.value || !form.arquivo">Enviar documento</button>
       </div>
     </form>
 
-    <form v-if="!loading && !error && canSend && activeTab === 'cliente'" @submit.prevent>
-      <p v-if="clienteAction.error.value" class="form-error">{{ clienteAction.error.value }}</p>
-
-      <div v-if="clienteExistente" class="empty-state" style="min-height: 90px;">
-        <strong>Cliente ja criado</strong>
-        <p>ID {{ clienteExistente.id }}</p>
-      </div>
-
-      <div v-else>
-        <div class="form-grid">
-          <label class="field full">
-            Documento de origem
-            <select v-model="clienteDocumentoId">
-              <option value="">Selecione</option>
-              <option v-for="documento in documentosIdentificacao" :key="documento.id" :value="documento.id">
-                {{ documento.tipo }} - {{ documento.papel }} - {{ documento.documentoExternoId }}
-              </option>
-            </select>
-          </label>
-          <label class="field">
-            Nome
-            <input v-model.trim="clienteForm.nome" required />
-          </label>
-          <label class="field">
-            CPF
-            <input v-model.trim="clienteForm.cpf" required inputmode="numeric" />
-          </label>
-          <label class="field">
-            Email
-            <input v-model.trim="clienteForm.email" type="email" />
-          </label>
-          <label class="field">
-            Telefone
-            <input v-model.trim="clienteForm.telefone" inputmode="tel" />
-          </label>
-          <label class="field">
-            Faixa etaria
-            <input v-model.trim="clienteForm.faixaEtaria" />
-          </label>
-        </div>
-
-        <div class="form-actions">
-          <button class="button secondary" type="button" :disabled="externalLoading || !selectedClienteDocumento" @click="buscarExtracaoParaCliente">
-            Carregar extração
-          </button>
-          <button class="button" type="button" :disabled="clienteAction.loading.value || !clienteForm.nome || !clienteForm.cpf" @click="abrirConfirmacaoCliente">
-            Conferir criação
-          </button>
-        </div>
-      </div>
-    </form>
   </section>
 
   <section v-if="!loading && !error && canSend" class="panel table-panel" style="margin-top: 18px;">
@@ -600,6 +581,9 @@ onUnmounted(clearPreview)
             <td>
               <strong>{{ documento.nomeArquivo || documento.tipo }}</strong>
               <small style="display: block; margin-top: 4px;">{{ documento.papel || '-' }}</small>
+              <small v-if="documento.cpf || documento.cpfDependente" style="display: block; margin-top: 4px;">
+                {{ documento.papel === 'Dependente' ? 'CPF dependente' : 'CPF' }}: {{ documento.cpfDependente || documento.cpf }}
+              </small>
             </td>
             <td>{{ ['RG', 'CPF', 'CNH'].includes(documento.tipo) ? 'Identificacao' : 'Endereco' }}</td>
             <td>{{ documento.tipo }}</td>
@@ -660,17 +644,6 @@ onUnmounted(clearPreview)
         <p>Este tipo de arquivo nao pode ser exibido no navegador. Use Baixar para abrir localmente.</p>
       </div>
 
-      <div v-if="getDocumentoExterno(viewingDocumento)" class="panel" style="margin-top: 16px;">
-        <div class="panel-header">
-          <div>
-            <span class="section-label">Extração</span>
-            <h3>Dados extraídos</h3>
-          </div>
-          <small>{{ getDocumentoExterno(viewingDocumento)?.documentoExternoId }}</small>
-        </div>
-        <pre style="white-space: pre-wrap; overflow: auto; max-height: 220px; font-size: 12px;">{{ JSON.stringify(getDocumentoExterno(viewingDocumento)?.dadosExtraidos ?? { status: 'Sem dados extraidos salvos. Use Consultar extração ou Reprocessar.' }, null, 2) }}</pre>
-      </div>
-
       <div class="form-actions">
         <a class="button secondary" :href="documentosExternosService.downloadUrl(viewingDocumento.documentoExternoId)" target="_blank" rel="noreferrer">Baixar</a>
         <button class="button secondary" type="button" :disabled="externalLoading || isDocumentoAprovado(viewingDocumento)" @click="rejectDocumento(viewingDocumento)">
@@ -683,35 +656,4 @@ onUnmounted(clearPreview)
     </section>
   </div>
 
-  <div v-if="confirmClienteCreation" class="modal-backdrop">
-    <section class="confirm-modal">
-      <h3>Confirmar cliente</h3>
-      <div class="detail-grid" style="grid-template-columns: 1fr;">
-        <div>
-          <small>Nome</small>
-          <strong>{{ clienteForm.nome }}</strong>
-        </div>
-        <div>
-          <small>CPF</small>
-          <strong>{{ clienteForm.cpf }}</strong>
-        </div>
-        <div>
-          <small>Email</small>
-          <strong>{{ clienteForm.email || '-' }}</strong>
-        </div>
-        <div>
-          <small>Telefone</small>
-          <strong>{{ clienteForm.telefone || '-' }}</strong>
-        </div>
-        <div>
-          <small>Faixa etaria</small>
-          <strong>{{ clienteForm.faixaEtaria || '-' }}</strong>
-        </div>
-      </div>
-      <div class="form-actions">
-        <button class="button secondary" type="button" @click="confirmClienteCreation = false">Voltar</button>
-        <button class="button" type="button" :disabled="clienteAction.loading.value" @click="criarCliente">Confirmar criação</button>
-      </div>
-    </section>
-  </div>
 </template>

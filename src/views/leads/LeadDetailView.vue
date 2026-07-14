@@ -7,12 +7,14 @@ import { getErrorMessage } from '@/services/apiClient'
 import { contratosService } from '@/services/contratosService'
 import { documentosApprovalStore } from '@/services/documentosApprovalStore'
 import { documentosService } from '@/services/documentosService'
+import { enderecosService } from '@/services/enderecosService'
 import { leadsService } from '@/services/leadsService'
 import { pessoasFisicasService } from '@/services/pessoasFisicasService'
 import { simulacoesService } from '@/services/simulacoesService'
 import type { ClienteResponse } from '@/types/clientes'
 import type { ContratoResponse } from '@/types/contratos'
 import type { DocumentoResponse } from '@/types/documentos'
+import type { EnderecoResponse } from '@/types/enderecos'
 import type { LeadResponse } from '@/types/leads'
 import type { PessoaFisicaResponse } from '@/types/pessoas'
 import type { SimulacaoResponse } from '@/types/simulacoes'
@@ -25,6 +27,7 @@ const documentos = ref<DocumentoResponse[]>([])
 const contratos = ref<ContratoResponse[]>([])
 const cliente = ref<ClienteResponse | null>(null)
 const pessoaFisica = ref<PessoaFisicaResponse | null>(null)
+const enderecos = ref<EnderecoResponse[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 
@@ -63,6 +66,7 @@ async function load() {
     contratos.value = contratosData
     cliente.value = clientesData.find((item) => item.leadId === props.id) ?? null
     pessoaFisica.value = cliente.value?.pessoaFisicaId ? await pessoasFisicasService.get!(cliente.value.pessoaFisicaId) : null
+    enderecos.value = cliente.value ? await enderecosService.list(cliente.value.id) : []
   } catch (err) {
     error.value = getErrorMessage(err)
   } finally {
@@ -102,6 +106,11 @@ onMounted(load)
       <div v-if="cliente && pessoaFisica?.faixaEtaria"><small>Faixa etaria</small><strong>{{ pessoaFisica.faixaEtaria }}</strong></div>
       <div v-if="cliente && clienteTelefoneDiferente"><small>Telefone do cliente</small><strong>{{ pessoaFisica?.telefone }}</strong></div>
       <div v-if="cliente && clienteEmailDiferente"><small>Email do cliente</small><strong>{{ pessoaFisica?.email }}</strong></div>
+      <template v-for="(endereco, index) in enderecos" :key="endereco.id">
+        <div><small>{{ enderecos.length > 1 ? `Endereco ${index + 1}` : 'Endereco' }}</small><strong>{{ endereco.logradouro || '-' }}</strong></div>
+        <div><small>Cidade/UF</small><strong>{{ [endereco.cidade, endereco.estado].filter(Boolean).join(' / ') || '-' }}</strong></div>
+        <div><small>CEP</small><strong>{{ endereco.cep || '-' }}</strong></div>
+      </template>
     </div>
   </section>
 </template>
