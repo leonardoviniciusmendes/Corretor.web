@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import ListState from '@/components/ui/ListState.vue'
+import { useToast } from '@/composables/useToast'
 import { clientesService } from '@/services/clientesService'
 import { getErrorMessage } from '@/services/apiClient'
 import { contratosService } from '@/services/contratosService'
@@ -16,9 +17,11 @@ import type { ContratoResponse } from '@/types/contratos'
 import type { DocumentoResponse } from '@/types/documentos'
 import type { EnderecoResponse } from '@/types/enderecos'
 import type { LeadResponse } from '@/types/leads'
+import type { ResultadoAnalisePlanos } from '@/types/analisePlanos'
 import type { DependenteResponse, PessoaFisicaResponse } from '@/types/pessoas'
 
 const props = defineProps<{ id: string }>()
+const toast = useToast()
 
 const lead = ref<LeadResponse | null>(null)
 const documentos = ref<DocumentoResponse[]>([])
@@ -28,6 +31,7 @@ const pessoaFisica = ref<PessoaFisicaResponse | null>(null)
 const dependentes = ref<DependenteResponse[]>([])
 const enderecos = ref<EnderecoResponse[]>([])
 const analiseToken = ref<string | null>(null)
+const resultadoAnalise = ref<ResultadoAnalisePlanos | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
 
@@ -87,6 +91,16 @@ const etapas = computed(() => [
 ])
 const clienteTelefoneDiferente = computed(() => Boolean(pessoaFisica.value?.telefone && pessoaFisica.value.telefone !== lead.value?.telefone))
 const clienteEmailDiferente = computed(() => Boolean(pessoaFisica.value?.email && pessoaFisica.value.email !== lead.value?.email))
+const mensagemInicialCliente = computed(() => resultadoAnalise.value?.mensagensCliente?.apresentacaoOpcoes?.trim() ?? '')
+
+function parseResultadoAnalise(value?: string | null) {
+  if (!value) return null
+  try {
+    return JSON.parse(value) as ResultadoAnalisePlanos
+  } catch {
+    return null
+  }
+}
 
 function anoNascimento(data?: string | null) {
   if (!data) return '-'
@@ -96,6 +110,16 @@ function anoNascimento(data?: string | null) {
 
 function nomeDependente(dependente: DependenteResponse) {
   return dependente.nomeCompleto || dependente.nome || dependente.cpf || '-'
+}
+
+async function copiarMensagemInicial() {
+  if (!mensagemInicialCliente.value) return
+  try {
+    await navigator.clipboard.writeText(mensagemInicialCliente.value)
+    toast.success('Mensagem copiada.')
+  } catch {
+    toast.error('Nao foi possivel copiar automaticamente.')
+  }
 }
 
 async function load() {
@@ -111,6 +135,7 @@ async function load() {
 
     lead.value = leadData
     analiseToken.value = leadData.tokenConsultaAnalise ?? null
+    resultadoAnalise.value = parseResultadoAnalise(leadData.retornoAnalise)
     documentos.value = documentosData
     contratos.value = contratosData
     cliente.value = clientesData.find((item) => item.leadId === props.id) ?? null
@@ -156,6 +181,17 @@ onMounted(load)
       </div>
       <RouterLink v-if="'to' in etapa && etapa.to" class="action-button" :to="etapa.to">{{ etapa.action }}</RouterLink>
     </article>
+  </section>
+
+  <section v-if="mensagemInicialCliente" class="panel lead-message-panel">
+    <div class="panel-header">
+      <div>
+        <span class="section-label">Mensagem inicial</span>
+        <h3>Mensagem para o cliente</h3>
+      </div>
+      <button class="button secondary" type="button" @click="copiarMensagemInicial">Copiar</button>
+    </div>
+    <p>{{ mensagemInicialCliente }}</p>
   </section>
 
   <section class="panel">
