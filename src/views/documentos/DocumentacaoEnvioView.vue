@@ -14,7 +14,6 @@ import { enderecosService } from '@/services/enderecosService'
 import { fichaAssociativaService } from '@/services/fichaAssociativaService'
 import { leadsService } from '@/services/leadsService'
 import { pessoasFisicasService } from '@/services/pessoasFisicasService'
-import { simulacoesService } from '@/services/simulacoesService'
 import {
   type DocumentoDadosExtraidos,
   type DocumentoResponse,
@@ -27,13 +26,11 @@ import {
   type TipoParentesco,
 } from '@/types/documentos'
 import type { LeadResponse } from '@/types/leads'
-import type { SimulacaoResponse } from '@/types/simulacoes'
 
-const props = defineProps<{ id: string }>()
+const props = defineProps<{ leadId: string }>()
 
 const loading = ref(false)
 const error = ref<string | null>(null)
-const simulacao = ref<SimulacaoResponse | null>(null)
 const lead = ref<LeadResponse | null>(null)
 const documentos = ref<DocumentoResponse[]>([])
 const viewingDocumento = ref<DocumentoResponse | null>(null)
@@ -77,7 +74,7 @@ const form = reactive<{
   arquivo: null,
 })
 
-const canSend = computed(() => Boolean(simulacao.value?.aprovada && simulacao.value.leadId))
+const canSend = computed(() => Boolean(props.leadId && lead.value))
 const isEndereco = computed(() => tiposEndereco.includes(form.tipo as TipoDocumento))
 const isDependente = computed(() => form.papel === 'Dependente')
 const isEmpresa = computed(() => form.papel === 'Empresa')
@@ -104,12 +101,9 @@ async function load() {
   error.value = null
 
   try {
-    const simulacaoData = await simulacoesService.get!(props.id)
-    simulacao.value = simulacaoData
-
     const [leadData, documentosData] = await Promise.all([
-      leadsService.get!(simulacaoData.leadId),
-      documentosService.list(simulacaoData.leadId),
+      leadsService.get!(props.leadId),
+      documentosService.list(props.leadId),
     ])
 
     lead.value = leadData
@@ -138,10 +132,10 @@ function onFileChange(event: Event) {
 }
 
 async function baixarFichaAssociativa() {
-  if (!simulacao.value?.leadId) return
+  if (!props.leadId) return
 
   await fichaAction.run(async () => {
-    const arquivo = await fichaAssociativaService.gerarArquivo(simulacao.value!.leadId)
+    const arquivo = await fichaAssociativaService.gerarArquivo(props.leadId)
     const url = URL.createObjectURL(arquivo)
     const link = document.createElement('a')
     link.href = url
@@ -162,7 +156,7 @@ function fileSizeLabel(bytes: number) {
 }
 
 async function submit() {
-  if (!simulacao.value?.leadId || !form.arquivo) return
+  if (!props.leadId || !form.arquivo) return
   if (
     !identificacaoTitularEnviada.value &&
     (form.papel !== 'Titular' || !tiposIdentificacaoTitular.includes(form.tipo as TipoDocumento))
@@ -201,7 +195,7 @@ async function submit() {
       cpfDependente: payload.cpfDependente || cpfDependenteExtraido || undefined,
       cnpj: payload.cnpj,
       extracaoProcessada: externo.extracaoProcessada,
-    }, simulacao.value!.leadId)
+    }, props.leadId)
     documentosExternosStore.save(documentoInterno.id, externo)
     await garantirClienteTitular(externo.dadosExtraidos ?? null, documentoInterno)
     await registrarEnderecosExtraidos(externo.dadosExtraidos ?? null)
@@ -374,10 +368,10 @@ function faixaEtariaFromDataNascimento(value?: string | null) {
 }
 
 async function garantirClienteTitular(dados: DocumentoDadosExtraidos | null, documento: DocumentoResponse) {
-  if (!simulacao.value?.leadId || documento.papel !== 'Titular') return null
+  if (!props.leadId || documento.papel !== 'Titular') return null
 
   const clientes = await clientesService.list()
-  const clienteAtual = clientes.find((item) => item.leadId === simulacao.value?.leadId)
+  const clienteAtual = clientes.find((item) => item.leadId === props.leadId)
   if (clienteAtual) return clienteAtual
 
   const cpf = extrairCpfIdentificacao(dados) || documento.cpf || form.cpf
@@ -397,7 +391,7 @@ async function garantirClienteTitular(dados: DocumentoDadosExtraidos | null, doc
   })
 
   return clientesService.create({
-    leadId: simulacao.value.leadId,
+    leadId: props.leadId,
     pessoaFisicaId: pessoa.id,
     pessoaJuridicaId: null,
   })
@@ -439,10 +433,10 @@ function mapearEnderecoExtraido(endereco: Record<string, unknown>) {
 
 async function registrarEnderecosExtraidos(dados: DocumentoDadosExtraidos | null) {
   const enderecosExtraidos = dados?.enderecos ?? []
-  if (!simulacao.value?.leadId || enderecosExtraidos.length === 0) return
+  if (!props.leadId || enderecosExtraidos.length === 0) return
 
   const clientes = await clientesService.list()
-  const cliente = clientes.find((item) => item.leadId === simulacao.value?.leadId)
+  const cliente = clientes.find((item) => item.leadId === props.leadId)
   if (!cliente) {
     externalError.value = 'Endereço extraído, mas este lead ainda não possui cliente cadastrado.'
     return
@@ -560,11 +554,11 @@ onUnmounted(clearPreview)
 <template>
   <section class="page-intro">
     <div>
-      <span class="section-label">Documentacao</span>
-      <h2>{{ lead?.nome || 'Envio de documentacao' }}</h2>
-      <p>{{ lead ? `${lead.telefone || 'Telefone nao informado'} · ${lead.quantidadeVidas ?? 0} vidas` : 'Documentos vinculados ao lead da simulacao.' }}</p>
+      <span class="section-label">Documentos</span>
+      <h2>{{ lead?.nome || 'Envio de documentos' }}</h2>
+      <p>{{ lead ? `${lead.telefone || 'Telefone nao informado'} · ${lead.quantidadeVidas ?? 0} vidas` : 'Documentos vinculados ao lead.' }}</p>
     </div>
-    <RouterLink class="button secondary" :to="`/simulacoes/${id}`">Voltar</RouterLink>
+    <RouterLink class="button secondary" :to="`/leads/${leadId}`">Voltar</RouterLink>
   </section>
 
   <section class="panel">
@@ -572,8 +566,8 @@ onUnmounted(clearPreview)
 
     <EmptyState
       v-if="!loading && !error && !canSend"
-      title="Simulacao nao aprovada"
-      message="A documentacao so pode ser enviada depois que a simulacao estiver aprovada."
+      title="Lead nao encontrado"
+      message="Nao foi possivel carregar o lead para envio de documentos."
     />
 
     <form v-if="!loading && !error && canSend" @submit.prevent="submit">
@@ -741,3 +735,4 @@ onUnmounted(clearPreview)
   </div>
 
 </template>
+

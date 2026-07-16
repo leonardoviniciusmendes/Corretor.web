@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { RouterLink } from 'vue-router'
 import ConfirmActionModal from '@/components/ui/ConfirmActionModal.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import ListControls from '@/components/ui/ListControls.vue'
@@ -11,10 +11,7 @@ import { getErrorMessage } from '@/services/apiClient'
 import { contratosService } from '@/services/contratosService'
 import type { ContratoResponse } from '@/types/contratos'
 
-const route = useRoute()
-const router = useRouter()
-const props = defineProps<{ leadId?: string }>()
-const leadId = ref('')
+const props = defineProps<{ leadId: string }>()
 const contratos = ref<ContratoResponse[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
@@ -23,29 +20,19 @@ const deleting = useApiAction()
 const pager = usePagedList(() => contratos.value)
 
 async function load() {
-  if (!leadId.value) {
+  if (!props.leadId) {
     contratos.value = []
     return
   }
   loading.value = true
   error.value = null
   try {
-    contratos.value = await contratosService.list(leadId.value)
+    contratos.value = await contratosService.list(props.leadId)
   } catch (err) {
     error.value = getErrorMessage(err)
   } finally {
     loading.value = false
   }
-}
-
-function applyLead() {
-  if (props.leadId) {
-    load()
-    return
-  }
-
-  router.replace({ query: leadId.value ? { leadId: leadId.value } : {} })
-  load()
 }
 
 async function confirmDelete() {
@@ -57,23 +44,19 @@ async function confirmDelete() {
   }
 }
 
-onMounted(() => {
-  leadId.value = props.leadId || String(route.query.leadId ?? '')
-  load()
-})
+onMounted(load)
 </script>
 
 <template>
   <section class="page-intro">
     <div><span class="section-label">Contrato</span><h2>Contratos</h2><p>Contratos vinculados a um lead.</p></div>
-    <RouterLink v-if="leadId" class="button" :to="props.leadId ? `/leads/${props.leadId}/contratos/novo` : { path: '/contratos/novo', query: { leadId } }">Novo</RouterLink>
+    <RouterLink class="button" :to="`/leads/${props.leadId}/contratos/novo`">Novo</RouterLink>
   </section>
-  <section v-if="!props.leadId" class="filter-box"><div class="filter-content"><label class="field">Lead ID<input v-model="leadId" placeholder="Cole o UUID do lead" /></label><button class="button" type="button" @click="applyLead">Carregar</button></div></section>
   <ListControls v-model="pager.search.value" />
   <section class="panel table-panel">
     <div class="panel-header"><div><span class="section-label">Registros</span><h3>{{ pager.filteredItems.value.length }} encontrados</h3></div><small>GET /api/leads/{leadId}/contratos</small></div>
     <ListState :loading="loading" :error="error" @retry="load" />
-    <EmptyState v-if="!loading && !error && pager.pagedItems.value.length === 0" :message="leadId ? 'A API retornou uma lista vazia.' : 'Informe o Lead ID para consultar a API.'" />
+    <EmptyState v-if="!loading && !error && pager.pagedItems.value.length === 0" message="Este lead ainda nao possui contrato." />
     <div v-if="!loading && !error && pager.pagedItems.value.length > 0" class="table-wrap">
       <table>
         <thead><tr><th>ID</th><th>Lead ID</th><th>Acoes</th></tr></thead>

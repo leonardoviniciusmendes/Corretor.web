@@ -228,9 +228,6 @@ function toggleCard(index: number) {
 
           <p v-if="item.papelComercial" class="commercial-role">{{ item.papelComercial }}</p>
           <p v-if="item.motivoNaoEscolhidoParaCorretor" class="ranking-reason">{{ item.motivoNaoEscolhidoParaCorretor }}</p>
-          <a v-if="item.linkSimulacao" class="button secondary ranking-link" :href="item.linkSimulacao" target="_blank" rel="noreferrer">
-            Abrir simulacao
-          </a>
         </div>
       </article>
     </div>
@@ -257,7 +254,7 @@ function toggleCard(index: number) {
             <th colspan="5">Plano</th>
             <th colspan="5">Rede e valores</th>
             <th colspan="3">Notas</th>
-            <th colspan="3">Decisao comercial</th>
+            <th colspan="2">Decisao comercial</th>
           </tr>
           <tr>
             <th>Rank</th>
@@ -275,7 +272,6 @@ function toggleCard(index: number) {
             <th>Custo/beneficio</th>
             <th>Papel comercial</th>
             <th>Observacao</th>
-            <th>Simulacao</th>
           </tr>
         </thead>
         <tbody>
@@ -295,10 +291,6 @@ function toggleCard(index: number) {
             <td>{{ item.notaCustoBeneficio ?? '-' }}</td>
             <td>{{ item.papelComercial || '-' }}</td>
             <td>{{ item.motivoNaoEscolhidoParaCorretor || '-' }}</td>
-            <td>
-              <a v-if="item.linkSimulacao" :href="item.linkSimulacao" target="_blank" rel="noreferrer">Abrir</a>
-              <span v-else>-</span>
-            </td>
           </tr>
         </tbody>
       </table>

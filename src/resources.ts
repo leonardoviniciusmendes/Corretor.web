@@ -10,7 +10,6 @@ import { leadsService } from '@/services/leadsService'
 import { pessoasService } from '@/services/pessoasService'
 import { posContratosService } from '@/services/posContratosService'
 import { scriptsService } from '@/services/scriptsService'
-import { simulacoesService } from '@/services/simulacoesService'
 import type { ResourceConfig, ResourceService } from '@/types/common'
 
 export interface AppResource {
@@ -133,23 +132,6 @@ export const resources = {
         { key: 'mensagem', label: 'Mensagem', type: 'textarea' },
       ],
       columns: ['etapa', 'data', 'tipo', 'mensagem'],
-    },
-  },
-  simulacoes: {
-    service: simulacoesService,
-    config: {
-      key: 'simulacoes',
-      title: 'Simulacoes',
-      singular: 'Simulacao',
-      description: 'Simulacoes vinculadas a um lead.',
-      basePath: '/simulacoes',
-      parentParam: 'leadId',
-      parentLabel: 'Lead ID',
-      fields: [
-        { key: 'link', label: 'Link' },
-        { key: 'aprovada', label: 'Aprovada' },
-      ],
-      columns: ['leadId', 'link', 'aprovada', 'dataEnvio'],
     },
   },
   enderecos: {

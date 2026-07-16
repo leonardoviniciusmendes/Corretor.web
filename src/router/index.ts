@@ -3,10 +3,6 @@ import DashboardView from '@/views/dashboard/DashboardView.vue'
 import LeadsListView from '@/views/leads/LeadsListView.vue'
 import LeadFormView from '@/views/leads/LeadFormView.vue'
 import LeadDetailView from '@/views/leads/LeadDetailView.vue'
-import SimulacoesListView from '@/views/simulacoes/SimulacoesListView.vue'
-import SimulacaoFormView from '@/views/simulacoes/SimulacaoFormView.vue'
-import SimulacaoDetailView from '@/views/simulacoes/SimulacaoDetailView.vue'
-import DocumentacaoListView from '@/views/documentos/DocumentacaoListView.vue'
 import DocumentacaoEnvioView from '@/views/documentos/DocumentacaoEnvioView.vue'
 import ContratosListView from '@/views/contratos/ContratosListView.vue'
 import ContratoFormView from '@/views/contratos/ContratoFormView.vue'
@@ -25,17 +21,9 @@ const router = createRouter({
     { path: '/leads/:id', name: 'leads-detail', component: LeadDetailView, props: (route: RouteLocationNormalizedLoaded) => ({ id: String(route.params.id) }), meta: { title: 'Detalhe do lead/cliente' } },
     { path: '/leads/:id/editar', name: 'leads-edit', component: LeadFormView, props: (route: RouteLocationNormalizedLoaded) => ({ id: String(route.params.id) }), meta: { title: 'Editar lead/cliente' } },
     { path: '/leads/:id/analise-planos', name: 'leads-analise-planos', component: AnalisePlanosPage, props: (route: RouteLocationNormalizedLoaded) => ({ leadId: String(route.params.id) }), meta: { title: 'Analise de Planos' } },
-    { path: '/leads/:id/documentos', name: 'leads-documentos', component: DocumentacaoListView, props: (route: RouteLocationNormalizedLoaded) => ({ leadId: String(route.params.id) }), meta: { title: 'Documentos do lead' } },
+    { path: '/leads/:id/documentos', name: 'leads-documentos', component: DocumentacaoEnvioView, props: (route: RouteLocationNormalizedLoaded) => ({ leadId: String(route.params.id) }), meta: { title: 'Documentos do lead' } },
     { path: '/leads/:id/contratos', name: 'leads-contratos', component: ContratosListView, props: (route: RouteLocationNormalizedLoaded) => ({ leadId: String(route.params.id) }), meta: { title: 'Contratos do lead' } },
     { path: '/leads/:id/contratos/novo', name: 'leads-contratos-new', component: ContratoFormView, props: (route: RouteLocationNormalizedLoaded) => ({ leadId: String(route.params.id) }), meta: { title: 'Novo contrato' } },
-    { path: '/simulacoes', name: 'simulacoes-list', component: SimulacoesListView, meta: { title: 'Simulacoes' } },
-    { path: '/simulacoes/novo', name: 'simulacoes-new', component: SimulacaoFormView, meta: { title: 'Nova simulacao' } },
-    { path: '/simulacoes/:id', name: 'simulacoes-detail', component: SimulacaoDetailView, props: (route: RouteLocationNormalizedLoaded) => ({ id: String(route.params.id) }), meta: { title: 'Detalhe da simulacao' } },
-    { path: '/simulacoes/:id/editar', name: 'simulacoes-edit', component: SimulacaoFormView, props: (route: RouteLocationNormalizedLoaded) => ({ id: String(route.params.id) }), meta: { title: 'Editar simulacao' } },
-    { path: '/documentacao', name: 'documentacao-list', component: DocumentacaoListView, meta: { title: 'Envio de documentos' } },
-    { path: '/simulacoes/:id/documentacao', name: 'simulacoes-documentacao', component: DocumentacaoEnvioView, props: (route: RouteLocationNormalizedLoaded) => ({ id: String(route.params.id) }), meta: { title: 'Envio de documentacao' } },
-    { path: '/contratos', name: 'contratos-list', component: ContratosListView, meta: { title: 'Contratos' } },
-    { path: '/contratos/novo', name: 'contratos-new', component: ContratoFormView, meta: { title: 'Novo contrato' } },
     { path: '/contratos/:id', name: 'contratos-detail', component: ContratoDetailView, props: (route: RouteLocationNormalizedLoaded) => ({ id: String(route.params.id) }), meta: { title: 'Detalhe do contrato' } },
     { path: '/scripts', name: 'scripts-list', component: ScriptsListView, meta: { title: 'Scripts' } },
     { path: '/scripts/novo', name: 'scripts-new', component: ScriptFormView, meta: { title: 'Novo script' } },

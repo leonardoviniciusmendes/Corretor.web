@@ -218,7 +218,6 @@ async function criarAnalise(payload: CriarAnalisePlanosPayload) {
     const response = await analisePlanosApi.criarAnalise({
       ...payload,
       leadId: activeLeadId.value || undefined,
-      linkSimulacao: '',
     })
     tokenConsulta.value = response.tokenConsulta
     if (activeLeadId.value) {

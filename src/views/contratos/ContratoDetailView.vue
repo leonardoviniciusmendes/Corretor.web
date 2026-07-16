@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import ListState from '@/components/ui/ListState.vue'
 import { getErrorMessage } from '@/services/apiClient'
@@ -10,6 +10,7 @@ const props = defineProps<{ id: string }>()
 const contrato = ref<ContratoResponse | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
+const backTo = computed(() => contrato.value ? `/leads/${contrato.value.leadId}/contratos` : '/leads')
 
 async function load() {
   loading.value = true
@@ -32,7 +33,7 @@ onMounted(load)
       <h2>Detalhe do contrato</h2>
       <p>GET /api/contratos/{id}</p>
     </div>
-    <RouterLink class="button secondary" to="/contratos">Voltar</RouterLink>
+    <RouterLink class="button secondary" :to="backTo">Voltar</RouterLink>
   </section>
   <section class="panel">
     <ListState :loading="loading" :error="error" @retry="load" />

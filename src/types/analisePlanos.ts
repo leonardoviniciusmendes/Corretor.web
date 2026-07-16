@@ -13,7 +13,6 @@ export interface CriarAnalisePlanosPayload {
   perfilCliente: string
   prioridadeVenda: string
   cep: string
-  linkSimulacao: string
   operadorasPreferidas: string[]
   tipoTabela: TipoTabela
   observacoesCorretor: string
@@ -38,7 +37,6 @@ export interface PlanoResumo {
   papelComercial?: string | null
   justificativa?: string | null
   motivo?: string | null
-  linkSimulacao?: string | null
 }
 
 export interface RankingPlano extends PlanoResumo {

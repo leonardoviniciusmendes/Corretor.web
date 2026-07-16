@@ -42,8 +42,8 @@ const todosDocumentosAprovados = computed(
 const podeVerContratos = computed(() => todosDocumentosAprovados.value)
 const etapaAtual = computed(() => {
   if (contratos.value.length > 0) return 'Contrato'
-  if (todosDocumentosAprovados.value) return 'Documentacao aprovada'
-  if (documentos.value.length > 0) return 'Documentacao pendente'
+  if (todosDocumentosAprovados.value) return 'Documentos aprovados'
+  if (documentos.value.length > 0) return 'Documentos pendentes'
   if (temAnalisePlanos.value) return 'Analise de planos'
   return 'Lead cadastrado'
 })

@@ -62,7 +62,6 @@ function submit() {
     perfilCliente: form.perfilCliente.trim(),
     prioridadeVenda: '',
     cep: form.cep.trim(),
-    linkSimulacao: '',
     operadorasPreferidas: [],
     tipoTabela: form.tipoTabela,
     observacoesCorretor: form.observacoesCorretor.trim(),

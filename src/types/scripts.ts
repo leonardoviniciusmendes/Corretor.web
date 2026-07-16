@@ -2,9 +2,9 @@ export type ScriptEtapa =
   | 'CriacaoLead'
   | 'ConversaInicial'
   | 'FaixaEtaria'
-  | 'EnvioSimulacao'
+  | 'EnvioAnalise'
   | 'RetornoContato'
-  | 'AprovacaoSimulacao'
+  | 'AprovacaoAnalise'
   | 'Documentacao'
   | 'Contrato'
   | 'PosContrato'
@@ -13,9 +13,9 @@ export const scriptEtapas: ScriptEtapa[] = [
   'CriacaoLead',
   'ConversaInicial',
   'FaixaEtaria',
-  'EnvioSimulacao',
+  'EnvioAnalise',
   'RetornoContato',
-  'AprovacaoSimulacao',
+  'AprovacaoAnalise',
   'Documentacao',
   'Contrato',
   'PosContrato',
