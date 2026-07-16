@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import RankingPlanosTable from './RankingPlanosTable.vue'
 import MensagemWhatsAppCard from './MensagemWhatsAppCard.vue'
 import ScriptCorretorCard from './ScriptCorretorCard.vue'
@@ -10,6 +11,8 @@ defineProps<{ resultado: ResultadoAnalisePlanos }>()
 const emit = defineEmits<{
   copy: [text: string]
 }>()
+
+const strategyCollapsed = ref(false)
 
 function money(value: number | null | undefined) {
   if (value === null || value === undefined) return null
@@ -36,43 +39,55 @@ function details(value: PlanoResumo | string | null | undefined) {
 
 <template>
   <div class="resultado-analise">
-    <section class="strategy-grid">
-      <article class="panel strategy-card">
-        <span class="section-label">Venda</span>
-        <h3>Melhor para o corretor vender</h3>
-        <strong>{{ title(resultado.melhorParaCorretorVender) }}</strong>
-        <small v-for="(item, index) in details(resultado.melhorParaCorretorVender)" :key="`${item}-${index}`">{{ item }}</small>
-      </article>
-      <article class="panel strategy-card">
-        <span class="section-label">Cliente</span>
-        <h3>Melhor custo-beneficio</h3>
-        <strong>{{ title(resultado.estrategiaFechamento?.custoBeneficio ?? resultado.melhorParaCliente) }}</strong>
-        <small v-for="(item, index) in details(resultado.estrategiaFechamento?.custoBeneficio ?? resultado.melhorParaCliente)" :key="`${item}-${index}`">{{ item }}</small>
-      </article>
-      <article class="panel strategy-card">
-        <span class="section-label">Premium</span>
-        <h3>Premium / mais caro</h3>
-        <strong>{{ title(resultado.estrategiaFechamento?.maisCaroPremium) }}</strong>
-        <small v-for="(item, index) in details(resultado.estrategiaFechamento?.maisCaroPremium)" :key="`${item}-${index}`">{{ item }}</small>
-      </article>
-      <article class="panel strategy-card">
-        <span class="section-label">Meio termo</span>
-        <h3>Intermediario</h3>
-        <strong>{{ title(resultado.estrategiaFechamento?.intermediario) }}</strong>
-        <small v-for="(item, index) in details(resultado.estrategiaFechamento?.intermediario)" :key="`${item}-${index}`">{{ item }}</small>
-      </article>
-      <article class="panel strategy-card">
-        <span class="section-label">Entrada</span>
-        <h3>Mais barato</h3>
-        <strong>{{ title(resultado.estrategiaFechamento?.maisBarato ?? resultado.maisEconomico) }}</strong>
-        <small v-for="(item, index) in details(resultado.estrategiaFechamento?.maisBarato ?? resultado.maisEconomico)" :key="`${item}-${index}`">{{ item }}</small>
-      </article>
-      <article class="panel strategy-card">
-        <span class="section-label">Rede</span>
-        <h3>Melhor rede</h3>
-        <strong>{{ title(resultado.melhorRede) }}</strong>
-        <small v-for="(item, index) in details(resultado.melhorRede)" :key="`${item}-${index}`">{{ item }}</small>
-      </article>
+    <section class="panel strategy-panel">
+      <div class="panel-header">
+        <div>
+          <span class="section-label">Estrategia</span>
+          <h3>Resumo comercial</h3>
+        </div>
+        <button class="button secondary" type="button" @click="strategyCollapsed = !strategyCollapsed">
+          {{ strategyCollapsed ? 'Expandir' : 'Esconder' }}
+        </button>
+      </div>
+
+      <div v-if="!strategyCollapsed" class="strategy-grid">
+        <article class="strategy-card">
+          <span class="section-label">Venda</span>
+          <h3>Melhor para o corretor vender</h3>
+          <strong>{{ title(resultado.melhorParaCorretorVender) }}</strong>
+          <small v-for="(item, index) in details(resultado.melhorParaCorretorVender)" :key="`${item}-${index}`">{{ item }}</small>
+        </article>
+        <article class="strategy-card">
+          <span class="section-label">Cliente</span>
+          <h3>Melhor custo-beneficio</h3>
+          <strong>{{ title(resultado.estrategiaFechamento?.custoBeneficio ?? resultado.melhorParaCliente) }}</strong>
+          <small v-for="(item, index) in details(resultado.estrategiaFechamento?.custoBeneficio ?? resultado.melhorParaCliente)" :key="`${item}-${index}`">{{ item }}</small>
+        </article>
+        <article class="strategy-card">
+          <span class="section-label">Premium</span>
+          <h3>Premium / mais caro</h3>
+          <strong>{{ title(resultado.estrategiaFechamento?.maisCaroPremium) }}</strong>
+          <small v-for="(item, index) in details(resultado.estrategiaFechamento?.maisCaroPremium)" :key="`${item}-${index}`">{{ item }}</small>
+        </article>
+        <article class="strategy-card">
+          <span class="section-label">Meio termo</span>
+          <h3>Intermediario</h3>
+          <strong>{{ title(resultado.estrategiaFechamento?.intermediario) }}</strong>
+          <small v-for="(item, index) in details(resultado.estrategiaFechamento?.intermediario)" :key="`${item}-${index}`">{{ item }}</small>
+        </article>
+        <article class="strategy-card">
+          <span class="section-label">Entrada</span>
+          <h3>Mais barato</h3>
+          <strong>{{ title(resultado.estrategiaFechamento?.maisBarato ?? resultado.maisEconomico) }}</strong>
+          <small v-for="(item, index) in details(resultado.estrategiaFechamento?.maisBarato ?? resultado.maisEconomico)" :key="`${item}-${index}`">{{ item }}</small>
+        </article>
+        <article class="strategy-card">
+          <span class="section-label">Rede</span>
+          <h3>Melhor rede</h3>
+          <strong>{{ title(resultado.melhorRede) }}</strong>
+          <small v-for="(item, index) in details(resultado.melhorRede)" :key="`${item}-${index}`">{{ item }}</small>
+        </article>
+      </div>
     </section>
 
     <RankingPlanosTable :ranking="resultado.ranking" />

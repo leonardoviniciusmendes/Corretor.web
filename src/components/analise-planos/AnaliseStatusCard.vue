@@ -4,11 +4,12 @@ defineProps<{
   status: string
   loading: boolean
   error: string | null
+  embedded?: boolean
 }>()
 </script>
 
 <template>
-  <section v-if="tokenConsulta || loading || error" class="panel status-card">
+  <section v-if="tokenConsulta || loading || error" class="status-card" :class="{ panel: !embedded, embedded }">
     <div v-if="loading" class="spinner"></div>
     <div>
       <span class="section-label">Status</span>

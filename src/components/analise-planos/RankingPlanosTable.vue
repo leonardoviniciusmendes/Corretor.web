@@ -1,19 +1,35 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { RankingPlano } from '@/types/analisePlanos'
 
 const props = defineProps<{ ranking?: RankingPlano[] | null }>()
 
 const expandedCards = ref<Set<number>>(new Set([0]))
+const comparisonCollapsed = ref(false)
 const showTechnicalTable = ref(false)
+const technicalPage = ref(1)
+const technicalPageSize = ref(5)
 
 watch(
   () => props.ranking,
   () => {
     expandedCards.value = new Set([0])
     showTechnicalTable.value = false
+    technicalPage.value = 1
   },
 )
+
+const technicalTotal = computed(() => props.ranking?.length ?? 0)
+const technicalTotalPages = computed(() => Math.max(Math.ceil(technicalTotal.value / technicalPageSize.value), 1))
+const pagedRanking = computed(() => {
+  const ranking = props.ranking ?? []
+  const start = (technicalPage.value - 1) * technicalPageSize.value
+  return ranking.slice(start, start + technicalPageSize.value)
+})
+
+watch(technicalPageSize, () => {
+  technicalPage.value = 1
+})
 
 function money(value: number | null | undefined) {
   if (value === null || value === undefined) return '-'
@@ -208,9 +224,12 @@ function toggleCard(index: number) {
         <span class="section-label">Comparativo</span>
         <h3>Comparativo para apresentacao</h3>
       </div>
+      <button class="button secondary" type="button" @click="comparisonCollapsed = !comparisonCollapsed">
+        {{ comparisonCollapsed ? 'Expandir' : 'Esconder' }}
+      </button>
     </div>
 
-    <div v-if="ranking?.length" class="ranking-comparison">
+    <div v-if="ranking?.length && !comparisonCollapsed" class="ranking-comparison">
       <article v-for="(item, index) in ranking" :key="`${item.operadora}-${item.plano}-${index}`" class="ranking-card">
         <button class="ranking-card-head" type="button" :aria-expanded="isExpanded(index)" @click="toggleCard(index)">
           <span class="ranking-position">#{{ item.posicao ?? index + 1 }}</span>
@@ -268,17 +287,22 @@ function toggleCard(index: number) {
       </article>
     </div>
 
-    <div v-if="ranking?.length" class="ranking-technical">
-      <button class="technical-toggle" type="button" :aria-expanded="showTechnicalTable" @click="showTechnicalTable = !showTechnicalTable">
-        <span>
-          <strong>Comparativo tecnico completo</strong>
-          <small>Tabela detalhada para conferencia interna</small>
-        </span>
-        <b>{{ showTechnicalTable ? '-' : '+' }}</b>
+    <p v-else-if="!ranking?.length" class="empty-row">Nenhum item no ranking.</p>
+  </section>
+
+  <section v-if="ranking?.length" class="panel table-panel ranking-panel ranking-technical-panel">
+    <div class="panel-header">
+      <div>
+        <span class="section-label">Conferencia</span>
+        <h3>Comparativo tecnico completo</h3>
+        <small>Tabela detalhada para conferencia interna</small>
+      </div>
+      <button class="button secondary" type="button" :aria-expanded="showTechnicalTable" @click="showTechnicalTable = !showTechnicalTable">
+        {{ showTechnicalTable ? 'Esconder' : 'Expandir' }}
       </button>
     </div>
 
-    <div v-if="ranking?.length && showTechnicalTable" class="table-wrap ranking-table-wrap">
+    <div v-if="showTechnicalTable" class="table-wrap ranking-table-wrap">
       <table>
         <thead>
           <tr class="table-group-row">
@@ -307,8 +331,8 @@ function toggleCard(index: number) {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(item, index) in ranking" :key="`${item.operadora}-${item.plano}-table-${index}`">
-            <td>{{ item.posicao ?? index + 1 }}</td>
+          <tr v-for="(item, index) in pagedRanking" :key="`${item.operadora}-${item.plano}-table-${index}`">
+            <td>{{ item.posicao ?? ((technicalPage - 1) * technicalPageSize) + index + 1 }}</td>
             <td>{{ item.plano || '-' }}</td>
             <td>{{ item.operadora || '-' }}</td>
             <td>{{ item.tipoTabela || '-' }}</td>
@@ -331,6 +355,19 @@ function toggleCard(index: number) {
         </tbody>
       </table>
     </div>
-    <p v-else class="empty-row">Nenhum item no ranking.</p>
+    <div v-if="showTechnicalTable" class="technical-pagination">
+      <span>{{ technicalTotal }} item(ns)</span>
+      <label>
+        Por pagina
+        <select v-model.number="technicalPageSize">
+          <option :value="5">5</option>
+          <option :value="10">10</option>
+          <option :value="20">20</option>
+        </select>
+      </label>
+      <button type="button" :disabled="technicalPage <= 1" @click="technicalPage--">Anterior</button>
+      <strong>{{ technicalPage }} / {{ technicalTotalPages }}</strong>
+      <button type="button" :disabled="technicalPage >= technicalTotalPages" @click="technicalPage++">Proxima</button>
+    </div>
   </section>
 </template>

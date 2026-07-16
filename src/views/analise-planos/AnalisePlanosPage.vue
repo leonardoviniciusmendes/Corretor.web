@@ -316,26 +316,31 @@ onBeforeUnmount(clearPoll)
 
   <div class="analise-layout">
     <div>
-      <button
-        class="button secondary form-collapse-toggle"
-        type="button"
-        @click="formCollapsed = !formCollapsed"
-      >
-        {{ formCollapsed ? 'Expandir dados da solicitacao' : 'Esconder dados da solicitacao' }}
-      </button>
       <AnalisePlanosForm
         :key="activeLeadId || 'standalone'"
         :collapsed="formCollapsed"
         :submitting="loading && !polling"
+        :status="status"
+        :token-consulta="tokenConsulta"
         :initial-cep="initialCep"
         :initial-perfil="initialPerfil"
         :initial-observacoes="initialObservacoes"
         :initial-idades="initialIdades"
         :initial-necessidades="initialNecessidades"
         @submit="criarAnalise"
-      />
+        @toggle="formCollapsed = !formCollapsed"
+      >
+        <template v-if="error || loading || polling" #status>
+          <AnaliseStatusCard
+            :token-consulta="tokenConsulta"
+            :status="status"
+            :loading="loading || polling"
+            :error="error"
+            embedded
+          />
+        </template>
+      </AnalisePlanosForm>
     </div>
-    <AnaliseStatusCard :token-consulta="tokenConsulta" :status="status" :loading="loading || polling" :error="error" />
   </div>
 
   <ResultadoAnalisePlanos v-if="resultado" :resultado="resultado" @copy="copyText" />

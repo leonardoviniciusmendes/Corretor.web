@@ -5,6 +5,8 @@ import type { CriarAnalisePlanosPayload, TipoTabela } from '@/types/analisePlano
 const props = defineProps<{
   submitting?: boolean
   collapsed?: boolean
+  status?: string
+  tokenConsulta?: string | null
   initialCep?: string
   initialPerfil?: string
   initialObservacoes?: string
@@ -14,6 +16,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   submit: [payload: CriarAnalisePlanosPayload]
+  toggle: []
 }>()
 
 const tiposTabela: TipoTabela[] = ['Adesao', 'Familiar', 'Individual', 'PmeEmpresarial', 'AdesaoPmeEmpresarial', 'NaoInformado']
@@ -74,7 +77,16 @@ function submit() {
         <span class="section-label">Solicitacao</span>
         <h3>Dados para analise comercial</h3>
       </div>
+      <div v-if="status || tokenConsulta" class="solicitation-status-inline">
+        <span>Status: <strong>{{ status || '-' }}</strong></span>
+        <span v-if="tokenConsulta">Token: <strong class="id-chip">{{ tokenConsulta }}</strong></span>
+      </div>
+      <button class="button secondary" type="button" @click="emit('toggle')">
+        {{ collapsed ? 'Expandir' : 'Esconder' }}
+      </button>
     </div>
+
+    <slot name="status"></slot>
 
     <div v-if="!collapsed" class="form-grid">
       <label class="field">
