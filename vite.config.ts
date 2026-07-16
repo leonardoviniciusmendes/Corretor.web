@@ -5,7 +5,13 @@ import vue from '@vitejs/plugin-vue'
 export default defineConfig({
   plugins: [vue()],
   server: {
+    host: '0.0.0.0',
     proxy: {
+      '/api/analises-comerciais': {
+        target: 'https://localhost:7225',
+        changeOrigin: true,
+        secure: false,
+      },
       '/api/Documentos': {
         target: 'http://localhost:5001',
         changeOrigin: true,
@@ -41,6 +47,11 @@ export default defineConfig({
         secure: false,
       },
       '/api/contratos': {
+        target: 'https://localhost:58507',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/api/scripts': {
         target: 'https://localhost:58507',
         changeOrigin: true,
         secure: false,

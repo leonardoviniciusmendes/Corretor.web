@@ -1,10 +1,11 @@
 import { toApiError } from './errorHandler'
 
-const apiUrl = import.meta.env.VITE_API_URL || 'https://localhost:58507'
+const apiUrl = import.meta.env.VITE_API_URL || ''
 
 function buildUrl(path: string) {
-  const base = String(apiUrl).replace(/\/$/, '')
   const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  if (!apiUrl) return normalizedPath
+  const base = String(apiUrl).replace(/\/$/, '')
   return `${base}${normalizedPath}`
 }
 

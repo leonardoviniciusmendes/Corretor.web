@@ -6,11 +6,12 @@ import type {
   ResultadoAnalisePlanos,
 } from '@/types/analisePlanos'
 
-const analisePlanosApiUrl = import.meta.env.VITE_ANALISE_PLANOS_API_URL ?? 'https://localhost:7225'
+const analisePlanosApiUrl = import.meta.env.VITE_ANALISE_PLANOS_API_URL || ''
 
 function buildUrl(path: string) {
-  const base = String(analisePlanosApiUrl || 'https://localhost:7225').replace(/\/$/, '')
   const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  if (!analisePlanosApiUrl) return normalizedPath
+  const base = String(analisePlanosApiUrl).replace(/\/$/, '')
   return `${base}${normalizedPath}`
 }
 
@@ -25,7 +26,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   try {
     response = await fetch(buildUrl(path), { ...init, headers })
   } catch {
-    throw new Error('Nao foi possivel conectar a API de analise. Verifique se https://localhost:7225 esta em execucao.')
+    throw new Error('Nao foi possivel conectar a API de analise. Verifique se a API local esta em execucao.')
   }
 
   if (!response.ok) {
