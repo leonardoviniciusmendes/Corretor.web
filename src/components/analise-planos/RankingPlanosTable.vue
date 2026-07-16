@@ -9,6 +9,7 @@ const comparisonCollapsed = ref(false)
 const showTechnicalTable = ref(false)
 const technicalPage = ref(1)
 const technicalPageSize = ref(5)
+const hospitaisModal = ref<{ title: string; hospitais: string[] } | null>(null)
 
 watch(
   () => props.ranking,
@@ -133,6 +134,13 @@ function sampleText(value?: string[] | null) {
   return value?.length ? value.join(', ') : 'Detalhamento nao disponivel'
 }
 
+function openHospitaisModal(item: RankingPlano) {
+  hospitaisModal.value = {
+    title: [item.operadora, item.plano].filter(Boolean).join(' - ') || 'Hospitais',
+    hospitais: item.amostraHospitais ?? [],
+  }
+}
+
 function score(value: number | null | undefined) {
   return value === null || value === undefined ? '-' : value
 }
@@ -177,7 +185,12 @@ function toggleCard(index: number) {
         </button>
 
         <div class="ranking-metrics">
-          <div><small>Hospitais</small><strong>{{ totalHospitais(item) }}</strong></div>
+          <div>
+            <small>Hospitais</small>
+            <button class="metric-number-button" type="button" @click.stop="openHospitaisModal(item)">
+              {{ totalHospitais(item) }}
+            </button>
+          </div>
           <div><small>Clinicas</small><strong>{{ totalClinicas(item) }}</strong></div>
           <div><small>Labs</small><strong>{{ totalLaboratorios(item) }}</strong></div>
           <div><small>Prestadores</small><strong>{{ totalPrestadores(item) }}</strong></div>
@@ -305,4 +318,20 @@ function toggleCard(index: number) {
       <button type="button" :disabled="technicalPage >= technicalTotalPages" @click="technicalPage++">Proxima</button>
     </div>
   </section>
+
+  <div v-if="hospitaisModal" class="modal-backdrop" @click.self="hospitaisModal = null">
+    <section class="confirm-modal hospitais-modal">
+      <div class="panel-header compact">
+        <div>
+          <span class="section-label">Hospitais</span>
+          <h3>{{ hospitaisModal.title }}</h3>
+        </div>
+        <button class="button secondary" type="button" @click="hospitaisModal = null">Fechar</button>
+      </div>
+      <div v-if="hospitaisModal.hospitais.length" class="hospital-list">
+        <p v-for="hospital in hospitaisModal.hospitais" :key="hospital">{{ hospital }}</p>
+      </div>
+      <p v-else class="muted">Detalhamento nao disponivel.</p>
+    </section>
+  </div>
 </template>
