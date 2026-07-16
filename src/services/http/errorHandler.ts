@@ -11,8 +11,8 @@ export async function toApiError(response: Response): Promise<ApiError> {
   }
 
   const detailMessage =
-    typeof details === 'object' && details !== null && 'message' in details
-      ? String((details as { message?: unknown }).message)
+    typeof details === 'object' && details !== null
+      ? String((details as { message?: unknown; mensagem?: unknown }).message ?? (details as { mensagem?: unknown }).mensagem ?? '')
       : undefined
 
   return {

@@ -11,30 +11,27 @@ import { documentosService } from '@/services/documentosService'
 import { enderecosService } from '@/services/enderecosService'
 import { leadsService } from '@/services/leadsService'
 import { pessoasFisicasService } from '@/services/pessoasFisicasService'
-import { simulacoesService } from '@/services/simulacoesService'
 import type { ClienteResponse } from '@/types/clientes'
 import type { ContratoResponse } from '@/types/contratos'
 import type { DocumentoResponse } from '@/types/documentos'
 import type { EnderecoResponse } from '@/types/enderecos'
 import type { LeadResponse } from '@/types/leads'
 import type { DependenteResponse, PessoaFisicaResponse } from '@/types/pessoas'
-import type { SimulacaoResponse } from '@/types/simulacoes'
 
 const props = defineProps<{ id: string }>()
 
 const lead = ref<LeadResponse | null>(null)
-const simulacoes = ref<SimulacaoResponse[]>([])
 const documentos = ref<DocumentoResponse[]>([])
 const contratos = ref<ContratoResponse[]>([])
 const cliente = ref<ClienteResponse | null>(null)
 const pessoaFisica = ref<PessoaFisicaResponse | null>(null)
 const dependentes = ref<DependenteResponse[]>([])
 const enderecos = ref<EnderecoResponse[]>([])
+const analiseToken = ref<string | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
 
-const simulacaoAprovada = computed(() => simulacoes.value.find((simulacao) => simulacao.aprovada) ?? null)
-const podeEnviarDocumentos = computed(() => Boolean(simulacaoAprovada.value))
+const temAnalisePlanos = computed(() => Boolean(analiseToken.value))
 const todosDocumentosAprovados = computed(
   () => documentos.value.length > 0 && documentos.value.every((documento) => documentosApprovalStore.isApproved(documento.id)),
 )
@@ -43,10 +40,51 @@ const etapaAtual = computed(() => {
   if (contratos.value.length > 0) return 'Contrato'
   if (todosDocumentosAprovados.value) return 'Documentacao aprovada'
   if (documentos.value.length > 0) return 'Documentacao pendente'
-  if (simulacaoAprovada.value) return 'Simulacao aprovada'
-  if (simulacoes.value.length > 0) return 'Simulacao pendente'
+  if (temAnalisePlanos.value) return 'Analise de planos'
   return 'Lead cadastrado'
 })
+const etapas = computed(() => [
+  {
+    key: 'lead',
+    title: 'Cadastro do lead',
+    status: 'Concluido',
+    detail: lead.value?.nome || 'Lead cadastrado',
+    complete: true,
+    active: false,
+  },
+  {
+    key: 'analise',
+    title: 'Analise de planos',
+    status: temAnalisePlanos.value ? 'Gerada' : 'Pendente',
+    detail: temAnalisePlanos.value ? `Token ${analiseToken.value}` : 'Gerar estrategia comercial para o lead',
+    complete: temAnalisePlanos.value,
+    active: !temAnalisePlanos.value,
+    to: temAnalisePlanos.value
+      ? { path: `/leads/${props.id}/analise-planos`, query: { tokenConsulta: analiseToken.value } }
+      : `/leads/${props.id}/analise-planos`,
+    action: temAnalisePlanos.value ? 'Ver analise' : 'Gerar analise',
+  },
+  {
+    key: 'documentos',
+    title: 'Documentos',
+    status: todosDocumentosAprovados.value ? 'Aprovados' : documentos.value.length > 0 ? 'Em andamento' : 'Pendente',
+    detail: documentos.value.length > 0 ? `${documentos.value.length} documento(s)` : 'Enviar documentos do cliente',
+    complete: todosDocumentosAprovados.value,
+    active: temAnalisePlanos.value && !todosDocumentosAprovados.value,
+    to: { path: '/documentacao', query: { leadId: props.id } },
+    action: documentos.value.length > 0 ? 'Ver documentos' : 'Enviar documentos',
+  },
+  {
+    key: 'contrato',
+    title: 'Contrato',
+    status: contratos.value.length > 0 ? 'Gerado' : 'Pendente',
+    detail: contratos.value.length > 0 ? `${contratos.value.length} contrato(s)` : 'Disponivel apos documentos aprovados',
+    complete: contratos.value.length > 0,
+    active: todosDocumentosAprovados.value && contratos.value.length === 0,
+    to: { path: '/contratos', query: { leadId: props.id } },
+    action: contratos.value.length > 0 ? 'Ver contrato' : 'Criar contrato',
+  },
+])
 const clienteTelefoneDiferente = computed(() => Boolean(pessoaFisica.value?.telefone && pessoaFisica.value.telefone !== lead.value?.telefone))
 const clienteEmailDiferente = computed(() => Boolean(pessoaFisica.value?.email && pessoaFisica.value.email !== lead.value?.email))
 
@@ -64,16 +102,15 @@ async function load() {
   loading.value = true
   error.value = null
   try {
-    const [leadData, simulacoesData, documentosData, contratosData, clientesData] = await Promise.all([
+    const [leadData, documentosData, contratosData, clientesData] = await Promise.all([
       leadsService.get!(props.id),
-      simulacoesService.list(props.id),
       documentosService.list(props.id),
       contratosService.list(props.id),
       clientesService.list(),
     ])
 
     lead.value = leadData
-    simulacoes.value = simulacoesData
+    analiseToken.value = leadData.tokenConsultaAnalise ?? null
     documentos.value = documentosData
     contratos.value = contratosData
     cliente.value = clientesData.find((item) => item.leadId === props.id) ?? null
@@ -97,12 +134,28 @@ onMounted(load)
       <h2>Detalhe do lead</h2>
     </div>
     <div class="action-row">
-      <RouterLink class="button secondary" :to="{ path: '/simulacoes', query: { leadId: id } }">Simulacoes</RouterLink>
-      <RouterLink v-if="podeEnviarDocumentos && simulacaoAprovada" class="button secondary" :to="`/simulacoes/${simulacaoAprovada.id}/documentacao`">Documentos</RouterLink>
+      <RouterLink class="button secondary" :to="`/leads/${id}/analise-planos`">Gerar analise de planos</RouterLink>
       <RouterLink v-if="podeVerContratos" class="button secondary" :to="{ path: '/contratos', query: { leadId: id } }">Contratos</RouterLink>
       <RouterLink class="button" :to="`/leads/${id}/editar`">Editar</RouterLink>
       <RouterLink class="button secondary" to="/leads">Voltar</RouterLink>
     </div>
+  </section>
+
+  <section class="lead-steps">
+    <article
+      v-for="(etapa, index) in etapas"
+      :key="etapa.key"
+      class="lead-step"
+      :class="{ complete: etapa.complete, active: etapa.active }"
+    >
+      <span class="step-index">{{ index + 1 }}</span>
+      <div>
+        <small>{{ etapa.status }}</small>
+        <strong>{{ etapa.title }}</strong>
+        <p>{{ etapa.detail }}</p>
+      </div>
+      <RouterLink v-if="'to' in etapa && etapa.to" class="action-button" :to="etapa.to">{{ etapa.action }}</RouterLink>
+    </article>
   </section>
 
   <section class="panel">

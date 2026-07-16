@@ -14,6 +14,7 @@ import ContratoDetailView from '@/views/contratos/ContratoDetailView.vue'
 import ScriptsListView from '@/views/scripts/ScriptsListView.vue'
 import ScriptFormView from '@/views/scripts/ScriptFormView.vue'
 import ScriptDetailView from '@/views/scripts/ScriptDetailView.vue'
+import AnalisePlanosPage from '@/views/analise-planos/AnalisePlanosPage.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -23,6 +24,7 @@ const router = createRouter({
     { path: '/leads/novo', name: 'leads-new', component: LeadFormView, meta: { title: 'Novo lead/cliente' } },
     { path: '/leads/:id', name: 'leads-detail', component: LeadDetailView, props: (route: RouteLocationNormalizedLoaded) => ({ id: String(route.params.id) }), meta: { title: 'Detalhe do lead/cliente' } },
     { path: '/leads/:id/editar', name: 'leads-edit', component: LeadFormView, props: (route: RouteLocationNormalizedLoaded) => ({ id: String(route.params.id) }), meta: { title: 'Editar lead/cliente' } },
+    { path: '/leads/:id/analise-planos', name: 'leads-analise-planos', component: AnalisePlanosPage, props: (route: RouteLocationNormalizedLoaded) => ({ leadId: String(route.params.id) }), meta: { title: 'Analise de Planos' } },
     { path: '/simulacoes', name: 'simulacoes-list', component: SimulacoesListView, meta: { title: 'Simulacoes' } },
     { path: '/simulacoes/novo', name: 'simulacoes-new', component: SimulacaoFormView, meta: { title: 'Nova simulacao' } },
     { path: '/simulacoes/:id', name: 'simulacoes-detail', component: SimulacaoDetailView, props: (route: RouteLocationNormalizedLoaded) => ({ id: String(route.params.id) }), meta: { title: 'Detalhe da simulacao' } },
@@ -36,6 +38,7 @@ const router = createRouter({
     { path: '/scripts/novo', name: 'scripts-new', component: ScriptFormView, meta: { title: 'Novo script' } },
     { path: '/scripts/:id', name: 'scripts-detail', component: ScriptDetailView, props: (route: RouteLocationNormalizedLoaded) => ({ id: String(route.params.id) }), meta: { title: 'Detalhe do script' } },
     { path: '/scripts/:id/editar', name: 'scripts-edit', component: ScriptFormView, props: (route: RouteLocationNormalizedLoaded) => ({ id: String(route.params.id) }), meta: { title: 'Editar script' } },
+    { path: '/analise-planos', name: 'analise-planos', component: AnalisePlanosPage, meta: { title: 'Analise de Planos' } },
   ],
 })
 
