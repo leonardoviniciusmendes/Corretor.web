@@ -75,7 +75,7 @@ const etapas = computed(() => [
     detail: documentos.value.length > 0 ? `${documentos.value.length} documento(s)` : 'Enviar documentos do cliente',
     complete: todosDocumentosAprovados.value,
     active: temAnalisePlanos.value && !todosDocumentosAprovados.value,
-    to: { path: '/documentacao', query: { leadId: props.id } },
+    to: `/leads/${props.id}/documentos`,
     action: documentos.value.length > 0 ? 'Ver documentos' : 'Enviar documentos',
   },
   {
@@ -85,7 +85,7 @@ const etapas = computed(() => [
     detail: contratos.value.length > 0 ? `${contratos.value.length} contrato(s)` : 'Disponivel apos documentos aprovados',
     complete: contratos.value.length > 0,
     active: todosDocumentosAprovados.value && contratos.value.length === 0,
-    to: { path: '/contratos', query: { leadId: props.id } },
+    to: `/leads/${props.id}/contratos`,
     action: contratos.value.length > 0 ? 'Ver contrato' : 'Criar contrato',
   },
 ])
@@ -160,7 +160,7 @@ onMounted(load)
     </div>
     <div class="action-row">
       <RouterLink class="button secondary" :to="`/leads/${id}/analise-planos`">Gerar analise de planos</RouterLink>
-      <RouterLink v-if="podeVerContratos" class="button secondary" :to="{ path: '/contratos', query: { leadId: id } }">Contratos</RouterLink>
+      <RouterLink v-if="podeVerContratos" class="button secondary" :to="`/leads/${id}/contratos`">Contratos</RouterLink>
       <RouterLink class="button" :to="`/leads/${id}/editar`">Editar</RouterLink>
       <RouterLink class="button secondary" to="/leads">Voltar</RouterLink>
     </div>

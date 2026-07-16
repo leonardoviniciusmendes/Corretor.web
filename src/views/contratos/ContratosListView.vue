@@ -13,6 +13,7 @@ import type { ContratoResponse } from '@/types/contratos'
 
 const route = useRoute()
 const router = useRouter()
+const props = defineProps<{ leadId?: string }>()
 const leadId = ref('')
 const contratos = ref<ContratoResponse[]>([])
 const loading = ref(false)
@@ -38,6 +39,11 @@ async function load() {
 }
 
 function applyLead() {
+  if (props.leadId) {
+    load()
+    return
+  }
+
   router.replace({ query: leadId.value ? { leadId: leadId.value } : {} })
   load()
 }
@@ -52,7 +58,7 @@ async function confirmDelete() {
 }
 
 onMounted(() => {
-  leadId.value = String(route.query.leadId ?? '')
+  leadId.value = props.leadId || String(route.query.leadId ?? '')
   load()
 })
 </script>
@@ -60,9 +66,9 @@ onMounted(() => {
 <template>
   <section class="page-intro">
     <div><span class="section-label">Contrato</span><h2>Contratos</h2><p>Contratos vinculados a um lead.</p></div>
-    <RouterLink v-if="leadId" class="button" :to="{ path: '/contratos/novo', query: { leadId } }">Novo</RouterLink>
+    <RouterLink v-if="leadId" class="button" :to="props.leadId ? `/leads/${props.leadId}/contratos/novo` : { path: '/contratos/novo', query: { leadId } }">Novo</RouterLink>
   </section>
-  <section class="filter-box"><div class="filter-content"><label class="field">Lead ID<input v-model="leadId" placeholder="Cole o UUID do lead" /></label><button class="button" type="button" @click="applyLead">Carregar</button></div></section>
+  <section v-if="!props.leadId" class="filter-box"><div class="filter-content"><label class="field">Lead ID<input v-model="leadId" placeholder="Cole o UUID do lead" /></label><button class="button" type="button" @click="applyLead">Carregar</button></div></section>
   <ListControls v-model="pager.search.value" />
   <section class="panel table-panel">
     <div class="panel-header"><div><span class="section-label">Registros</span><h3>{{ pager.filteredItems.value.length }} encontrados</h3></div><small>GET /api/leads/{leadId}/contratos</small></div>

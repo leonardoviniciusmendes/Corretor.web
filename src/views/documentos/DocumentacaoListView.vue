@@ -10,6 +10,7 @@ import type { LeadResponse } from '@/types/leads'
 import type { SimulacaoResponse } from '@/types/simulacoes'
 
 const router = useRouter()
+const props = defineProps<{ leadId?: string }>()
 const leadSearch = ref('')
 const leads = ref<LeadResponse[]>([])
 const selectedLead = ref<LeadResponse | null>(null)
@@ -61,7 +62,27 @@ async function openDocumentacao(simulacao: SimulacaoResponse) {
   await router.push(`/simulacoes/${simulacao.id}/documentacao`)
 }
 
-onMounted(searchLeads)
+async function loadInitial() {
+  loadingLeads.value = true
+  error.value = null
+
+  try {
+    if (props.leadId) {
+      const lead = await leadsService.get!(props.leadId)
+      leads.value = [lead]
+      await selectLead(lead)
+      return
+    }
+
+    await searchLeads()
+  } catch (err) {
+    error.value = getErrorMessage(err)
+  } finally {
+    loadingLeads.value = false
+  }
+}
+
+onMounted(loadInitial)
 </script>
 
 <template>
@@ -73,7 +94,7 @@ onMounted(searchLeads)
     </div>
   </section>
 
-  <section class="filter-box">
+  <section v-if="!props.leadId" class="filter-box">
     <div class="filter-content">
       <label class="field">
         Buscar lead
@@ -91,6 +112,15 @@ onMounted(searchLeads)
         </div>
         <button class="button secondary" type="button" @click="selectLead(lead)">Selecionar</button>
       </article>
+    </div>
+  </section>
+
+  <section v-else-if="selectedLead" class="panel lead-analysis-context">
+    <div class="detail-grid">
+      <div><small>Lead vinculado</small><strong>{{ selectedLead.nome || '-' }}</strong></div>
+      <div><small>Telefone</small><strong>{{ selectedLead.telefone || '-' }}</strong></div>
+      <div><small>Vidas</small><strong>{{ selectedLead.quantidadeVidas ?? 0 }}</strong></div>
+      <div><small>Operadora</small><strong>{{ selectedLead.operadora || '-' }}</strong></div>
     </div>
   </section>
 
