@@ -45,17 +45,13 @@ export interface RankingPlano extends PlanoResumo {
   [key: string]: unknown
   posicao?: number | null
   valoresPorFaixaEtaria?: unknown
-  hospitais?: string[] | null
-  clinicas?: string[] | null
-  clínicas?: string[] | null
-  laboratorios?: string[] | null
-  laboratórios?: string[] | null
-  totalHospitais?: number | null
-  totalClinicas?: number | null
-  totalClínicas?: number | null
-  totalLaboratorios?: number | null
-  totalLaboratórios?: number | null
-  totalPrestadores?: number | null
+  hospitais: number
+  clinicas: number
+  laboratorios: number
+  totalPrestadores: number
+  amostraHospitais: string[]
+  amostraClinicas?: string[] | null
+  amostraLaboratorios?: string[] | null
   notaCliente?: number | null
   notaVenda?: number | null
   notaCustoBeneficio?: number | null

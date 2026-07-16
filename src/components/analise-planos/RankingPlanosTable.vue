@@ -86,55 +86,6 @@ function valueFrom(source: unknown, keys: string[], deep = false): unknown {
   return undefined
 }
 
-function listFrom(item: RankingPlano, keys: string[]) {
-  const value = valueFrom(item, keys, true)
-  if (Array.isArray(value)) return value.map((entry) => (typeof entry === 'string' ? entry : compact(entry))).filter(Boolean)
-  if (typeof value === 'string') return value.split(/[,;\n]/).map((entry) => entry.trim()).filter(Boolean)
-  return []
-}
-
-function numberFrom(item: RankingPlano, keys: string[]) {
-  const value = valueFrom(item, keys, true)
-  if (typeof value === 'number') return value
-  if (typeof value === 'string' && value.trim()) {
-    const parsed = Number(value)
-    return Number.isFinite(parsed) ? parsed : null
-  }
-  return null
-}
-
-function categoryMatches(value: unknown, categories: string[]) {
-  if (typeof value !== 'string') return false
-  const normalized = normalizeKey(value)
-  return categories.some((category) => normalized.includes(normalizeKey(category)))
-}
-
-function providerName(value: Record<string, unknown>) {
-  const name = valueFrom(value, ['nome', 'nomePrestador', 'prestador', 'razaoSocial', 'descricao'])
-  return typeof name === 'string' && name.trim() ? name.trim() : null
-}
-
-function categorizedProvidersFrom(source: unknown, categories: string[], result = new Set<string>()) {
-  if (!source || typeof source !== 'object') return result
-
-  if (Array.isArray(source)) {
-    for (const entry of source) categorizedProvidersFrom(entry, categories, result)
-    return result
-  }
-
-  const record = source as Record<string, unknown>
-  const typeValue = valueFrom(record, ['tipo', 'categoria', 'tipoPrestador', 'classificacao', 'grupo'])
-  if (categoryMatches(typeValue, categories)) {
-    result.add(providerName(record) ?? compact(record))
-  }
-
-  for (const value of Object.values(record)) {
-    if (value && typeof value === 'object') categorizedProvidersFrom(value, categories, result)
-  }
-
-  return result
-}
-
 function faixaValue(item: RankingPlano) {
   return valueFrom(item, [
     'valoresPorFaixaEtaria',
@@ -162,40 +113,24 @@ function faixaEntries(item: RankingPlano) {
   return [String(value)]
 }
 
-function hospitalList(item: RankingPlano) {
-  const direct = listFrom(item, ['hospitais', 'hospitaisCredenciados', 'redeHospitalar'])
-  return direct.length ? direct : Array.from(categorizedProvidersFrom(item, ['hospital']))
-}
-
-function clinicList(item: RankingPlano) {
-  const direct = listFrom(item, ['clinicas', 'clinicasCredenciadas', 'redeClinica'])
-  return direct.length ? direct : Array.from(categorizedProvidersFrom(item, ['clinica']))
-}
-
-function labList(item: RankingPlano) {
-  const direct = listFrom(item, ['laboratorios', 'labs', 'laboratoriosCredenciados', 'redeLaboratorial'])
-  return direct.length ? direct : Array.from(categorizedProvidersFrom(item, ['laboratorio', 'lab']))
-}
-
 function totalHospitais(item: RankingPlano) {
-  return numberFrom(item, ['totalHospitais', 'quantidadeHospitais', 'qtdHospitais']) ?? hospitalList(item).length
+  return item.hospitais ?? 0
 }
 
 function totalClinicas(item: RankingPlano) {
-  return numberFrom(item, ['totalClinicas', 'quantidadeClinicas', 'qtdClinicas']) ?? clinicList(item).length
+  return item.clinicas ?? 0
 }
 
 function totalLaboratorios(item: RankingPlano) {
-  return numberFrom(item, ['totalLaboratorios', 'quantidadeLaboratorios', 'qtdLaboratorios', 'totalLabs', 'qtdLabs']) ?? labList(item).length
+  return item.laboratorios ?? 0
 }
 
 function totalPrestadores(item: RankingPlano) {
-  return numberFrom(item, ['totalPrestadores', 'quantidadePrestadores', 'qtdPrestadores'])
-    ?? totalHospitais(item) + totalClinicas(item) + totalLaboratorios(item)
+  return item.totalPrestadores ?? 0
 }
 
-function joinList(value: string[]) {
-  return value.length ? value.join(', ') : '-'
+function sampleText(value?: string[] | null) {
+  return value?.length ? value.join(', ') : 'Detalhamento nao disponivel'
 }
 
 function score(value: number | null | undefined) {
@@ -266,15 +201,15 @@ function toggleCard(index: number) {
           <div class="ranking-network">
             <div>
               <small>Hospitais</small>
-              <p>{{ joinList(hospitalList(item)) }}</p>
+              <p>{{ sampleText(item.amostraHospitais) }}</p>
             </div>
             <div>
               <small>Clinicas</small>
-              <p>{{ joinList(clinicList(item)) }}</p>
+              <p>{{ sampleText(item.amostraClinicas) }}</p>
             </div>
             <div>
               <small>Laboratorios</small>
-              <p>{{ joinList(labList(item)) }}</p>
+              <p>{{ sampleText(item.amostraLaboratorios) }}</p>
             </div>
           </div>
 

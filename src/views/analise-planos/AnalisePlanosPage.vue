@@ -124,6 +124,7 @@ async function carregarResultado(token: string) {
   loading.value = true
   try {
     resultado.value = await analisePlanosApi.obterResultado(token)
+    console.log('Ranking recebido:', resultado.value?.ranking?.[0])
     if (activeLeadId.value) {
       await leadsService.registrarAnalise(activeLeadId.value, {
         tokenConsulta: token,
